@@ -1,6 +1,6 @@
 CREATE TABLE time_sessions(
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    daily_task_id BIGINT ,
+    daily_task_id BIGINT NOT NULL,
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at DATETIME,
     duration_seconds INT NOT NULL DEFAULT 0,
@@ -10,6 +10,6 @@ CREATE TABLE time_sessions(
     CONSTRAINT fk_time_sessions_daily_tasks
     FOREIGN KEY (daily_task_id)
     REFERENCES daily_tasks(id)
-    
-
-)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
