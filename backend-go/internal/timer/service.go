@@ -14,3 +14,6 @@ func (s *Service) StartTask(taskID int64) error {
 func (s *Service) PauseTask(taskID int64) error {
 	return s.repo.PauseTask(taskID)
 }
+func (r *Repository) ResumeTask(taskID int64) error {
+	return s.repo.ResumeTask(taskID)
+}

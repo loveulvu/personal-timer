@@ -124,3 +124,52 @@ func (r *Repository) PauseTask(taskID int64) error {
 
 	return tx.Commit()
 }
+func (r *Repository) ResumeTask(taskID int64) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var status string
+
+	query := `
+		SELECT status
+		FROM daily_tasks
+		WHERE id = ?
+		FOR UPDATE
+	`
+
+	err = tx.QueryRow(query, taskID).Scan(&status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errors.New("task not found")
+		}
+		return err
+	}
+
+	if status != "paused" {
+		return errors.New("task status must be paused")
+	}
+
+	insertSessionQuery := `
+		INSERT INTO time_sessions (daily_task_id)
+		VALUES (?)
+	`
+
+	if _, err := tx.Exec(insertSessionQuery, taskID); err != nil {
+		return err
+	}
+
+	updateTaskQuery := `
+		UPDATE daily_tasks
+		SET status = 'running'
+		WHERE id = ?
+	`
+
+	if _, err := tx.Exec(updateTaskQuery, taskID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
