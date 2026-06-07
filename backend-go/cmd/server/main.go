@@ -5,8 +5,10 @@ import (
 	"personal/internal/dailytasks"
 	"personal/internal/db"
 	"personal/internal/handler"
+	"personal/internal/llm"
 	"personal/internal/projects"
 	"personal/internal/stats"
+	"personal/internal/summaries"
 	"personal/internal/timer"
 
 	"github.com/gin-gonic/gin"
@@ -52,6 +54,17 @@ func main() {
 	statsHandler := stats.NewHandler(statsService)
 
 	api.GET("/stats/daily", statsHandler.GetDailyStats)
+	api.GET("/stats/weekly", statsHandler.GetWeeklyStats)
+
+	llmClient := llm.NewClientFromEnv()
+	summaryRepo := summaries.NewRepository(mysqlDB)
+	summaryService := summaries.NewService(summaryRepo, statsService, llmClient)
+	summaryHandler := summaries.NewHandler(summaryService)
+
+	api.POST("/summaries/daily/generate", summaryHandler.GenerateDailySummary)
+	api.POST("/summaries/weekly/generate", summaryHandler.GenerateWeeklySummary)
+	api.GET("/summaries", summaryHandler.ListSummaries)
+	api.GET("/summaries/:id", summaryHandler.GetSummaryByID)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}
