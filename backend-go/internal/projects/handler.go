@@ -1,0 +1,49 @@
+package projects
+
+import (
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	service *Service
+}
+
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
+}
+
+func (h *Handler) CreateProject(c *gin.Context) {
+	var req CreateProjectRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "invalid json",
+		})
+		return
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "need name",
+		})
+		return
+	}
+
+	id, err := h.service.CreateProject(req)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "create project failed",
+		})
+		return
+	}
+
+	c.JSON(201, gin.H{
+		"status": "ok",
+		"id":     id,
+	})
+}

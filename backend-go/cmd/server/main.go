@@ -4,6 +4,7 @@ import (
 	"log"
 	"personal/internal/db"
 	"personal/internal/handler"
+	"personal/internal/projects"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,10 @@ func main() {
 	api := r.Group("/api")
 	api.GET("/health", handler.Health)
 	api.GET("/health/db", handler.HealthDB(mysqlDB))
+	projectRepo := projects.NewRepository(mysqlDB)
+	projectService := projects.NewService(projectRepo)
+	projectHandler := projects.NewHandler(projectService)
+	api.POST("/projects", projectHandler.CreateProject)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}
