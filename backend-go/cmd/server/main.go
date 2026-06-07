@@ -23,6 +23,7 @@ func main() {
 	projectService := projects.NewService(projectRepo)
 	projectHandler := projects.NewHandler(projectService)
 	api.POST("/projects", projectHandler.CreateProject)
+	api.GET("/projects", projectHandler.ListProjects)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}

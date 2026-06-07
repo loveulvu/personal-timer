@@ -1,6 +1,8 @@
 package projects
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Repository struct {
 	db *sql.DB
@@ -27,4 +29,40 @@ func (r *Repository) CreateProject(input CreateProjectInput) (int64, error) {
 	}
 
 	return id, nil
+}
+func (r *Repository) ListProjects() ([]Project, error) {
+	query := `
+		SELECT id, name, description, is_fixed, created_at, updated_at
+FROM projects
+ORDER BY id DESC
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	projects := make([]Project, 0)
+	for rows.Next() {
+		var p Project
+
+		err := rows.Scan(
+			&p.ID,
+			&p.Name,
+			&p.Description,
+			&p.IsFixed,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		projects = append(projects, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return projects, nil
 }

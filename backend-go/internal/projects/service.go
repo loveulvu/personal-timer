@@ -9,6 +9,9 @@ type Service struct {
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
+func (s *Service) ListProjects() ([]Project, error) {
+	return s.repo.ListProjects()
+}
 
 func (s *Service) CreateProject(req CreateProjectRequest) (int64, error) {
 	input := CreateProjectInput{

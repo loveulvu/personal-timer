@@ -47,3 +47,18 @@ func (h *Handler) CreateProject(c *gin.Context) {
 		"id":     id,
 	})
 }
+func (h *Handler) ListProjects(c *gin.Context) {
+	projects, err := h.service.ListProjects()
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "failed to list projects",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "ok",
+		"data":   projects,
+	})
+}
