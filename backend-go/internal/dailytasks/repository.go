@@ -1,6 +1,11 @@
 package dailytasks
 
-import "database/sql"
+import (
+	"database/sql"
+	"errors"
+)
+
+var ErrDailyTaskNotFound = errors.New("daily task not found")
 
 type Repository struct {
 	db *sql.DB
@@ -89,6 +94,9 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 		&task.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrDailyTaskNotFound
+		}
 		return nil, err
 	}
 
@@ -98,17 +106,41 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 func (r *Repository) UpdateDailyTask(id int64, input UpdateDailyTaskInput) error {
 	query := `
 		UPDATE daily_tasks
-		SET project_id = ?, task_date = ?, title = ?, estimated_minutes = ?
+		SET project_id = ?, task_date = ?, title = ?, estimated_minutes = ?, status = ?
 		WHERE id = ?
 	`
 
-	_, err := r.db.Exec(query, input.ProjectID, input.TaskDate, input.Title, input.EstimatedMinutes, id)
-	return err
+	_, err := r.db.Exec(
+		query,
+		input.ProjectID,
+		input.TaskDate,
+		input.Title,
+		input.EstimatedMinutes,
+		input.Status,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *Repository) DeleteDailyTask(id int64) error {
 	query := `DELETE FROM daily_tasks WHERE id = ?`
 
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrDailyTaskNotFound
+	}
+
+	return nil
 }

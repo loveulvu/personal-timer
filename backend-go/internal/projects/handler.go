@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -66,7 +67,7 @@ func (h *Handler) ListProjects(c *gin.Context) {
 func (h *Handler) GetProjectByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
+	if err != nil || id <= 0 {
 		c.JSON(400, gin.H{
 			"status":  "error",
 			"message": "invalid project id",
@@ -75,6 +76,13 @@ func (h *Handler) GetProjectByID(c *gin.Context) {
 	}
 	project, err := h.service.GetProjectByID(id)
 	if err != nil {
+		if errors.Is(err, ErrProjectNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "failed to get project",
@@ -116,6 +124,13 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateProject(id, req); err != nil {
+		if errors.Is(err, ErrProjectNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "update project failed",
@@ -139,6 +154,13 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteProject(id); err != nil {
+		if errors.Is(err, ErrProjectNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "delete project failed",

@@ -1,6 +1,7 @@
 package timer
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -25,10 +26,7 @@ func (h *Handler) StartTask(c *gin.Context) {
 		return
 	}
 	if err := h.service.StartTask(taskID); err != nil {
-		c.JSON(400, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
+		writeTimerError(c, err)
 		return
 	}
 	c.JSON(200, gin.H{
@@ -50,10 +48,7 @@ func (h *Handler) PauseTask(c *gin.Context) {
 	}
 
 	if err := h.service.PauseTask(taskID); err != nil {
-		c.JSON(400, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
+		writeTimerError(c, err)
 		return
 	}
 
@@ -74,10 +69,7 @@ func (h *Handler) ResumeTask(c *gin.Context) {
 		return
 	}
 	if err := h.service.ResumeTask(taskID); err != nil {
-		c.JSON(400, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
+		writeTimerError(c, err)
 		return
 	}
 
@@ -99,10 +91,7 @@ func (h *Handler) FinishTask(c *gin.Context) {
 		return
 	}
 	if err := h.service.FinishTask(taskID); err != nil {
-		c.JSON(400, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
+		writeTimerError(c, err)
 		return
 	}
 
@@ -111,4 +100,24 @@ func (h *Handler) FinishTask(c *gin.Context) {
 		"message": "task finished",
 	})
 
+}
+
+func writeTimerError(c *gin.Context, err error) {
+	if errors.Is(err, ErrTaskNotFound) ||
+		errors.Is(err, ErrTaskMustBePlanned) ||
+		errors.Is(err, ErrTaskMustBeRunning) ||
+		errors.Is(err, ErrTaskMustBePaused) ||
+		errors.Is(err, ErrTaskMustBeRunningPaused) ||
+		errors.Is(err, ErrRunningSessionNotFound) {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(500, gin.H{
+		"status":  "error",
+		"message": "timer operation failed",
+	})
 }

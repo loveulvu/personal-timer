@@ -1,6 +1,14 @@
 package dailytasks
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
+
+var (
+	ErrInvalidDailyTaskStatus           = errors.New("invalid daily task status")
+	ErrInvalidDailyTaskStatusTransition = errors.New("daily task status must be changed through timer endpoints")
+)
 
 type Service struct {
 	repo *Repository
@@ -30,11 +38,25 @@ func (s *Service) GetDailyTaskByID(id int64) (*DailyTask, error) {
 }
 
 func (s *Service) UpdateDailyTask(id int64, req UpdateDailyTaskRequest) error {
+	currentTask, err := s.repo.GetDailyTaskByID(id)
+	if err != nil {
+		return err
+	}
+
+	status := strings.TrimSpace(req.Status)
+	if !isValidDailyTaskStatus(status) {
+		return ErrInvalidDailyTaskStatus
+	}
+	if status != currentTask.Status && !isManualStatusTransitionAllowed(currentTask.Status, status) {
+		return ErrInvalidDailyTaskStatusTransition
+	}
+
 	input := UpdateDailyTaskInput{
 		ProjectID:        req.ProjectID,
 		TaskDate:         req.TaskDate,
 		Title:            strings.TrimSpace(req.Title),
 		EstimatedMinutes: req.EstimatedMinutes,
+		Status:           status,
 	}
 
 	return s.repo.UpdateDailyTask(id, input)
@@ -42,4 +64,18 @@ func (s *Service) UpdateDailyTask(id int64, req UpdateDailyTaskRequest) error {
 
 func (s *Service) DeleteDailyTask(id int64) error {
 	return s.repo.DeleteDailyTask(id)
+}
+
+func isValidDailyTaskStatus(status string) bool {
+	switch status {
+	case "planned", "running", "paused", "completed", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
+func isManualStatusTransitionAllowed(currentStatus, newStatus string) bool {
+	return currentStatus == "planned" && newStatus == "cancelled" ||
+		currentStatus == "cancelled" && newStatus == "planned"
 }

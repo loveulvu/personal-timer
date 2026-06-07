@@ -2,7 +2,10 @@ package projects
 
 import (
 	"database/sql"
+	"errors"
 )
+
+var ErrProjectNotFound = errors.New("project not found")
 
 type Repository struct {
 	db *sql.DB
@@ -84,6 +87,9 @@ func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 		&p.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrProjectNotFound
+		}
 		return nil, err
 	}
 
@@ -93,13 +99,54 @@ func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 func (r *Repository) UpdateProject(id int64, input UpdateProjectInput) error {
 	query := `UPDATE projects SET name=?, description=?, is_fixed=? WHERE id=?`
 
-	_, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, id)
-	return err
+	result, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, id)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		exists, err := r.projectExists(id)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ErrProjectNotFound
+		}
+	}
+
+	return nil
 }
 
 func (r *Repository) DeleteProject(id int64) error {
 	query := `DELETE FROM projects WHERE id=?`
 
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrProjectNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) projectExists(id int64) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?)`
+
+	var exists bool
+	if err := r.db.QueryRow(query, id).Scan(&exists); err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }

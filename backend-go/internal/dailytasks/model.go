@@ -32,6 +32,7 @@ type UpdateDailyTaskRequest struct {
 	TaskDate         string `json:"task_date"`
 	Title            string `json:"title"`
 	EstimatedMinutes int    `json:"estimated_minutes"`
+	Status           string `json:"status"`
 }
 
 type UpdateDailyTaskInput struct {
@@ -39,4 +40,5 @@ type UpdateDailyTaskInput struct {
 	TaskDate         string
 	Title            string
 	EstimatedMinutes int
+	Status           string
 }

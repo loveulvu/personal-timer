@@ -1,6 +1,7 @@
 package dailytasks
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -128,6 +129,13 @@ func (h *Handler) GetDailyTaskByID(c *gin.Context) {
 
 	task, err := h.service.GetDailyTaskByID(id)
 	if err != nil {
+		if errors.Is(err, ErrDailyTaskNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "get daily task failed",
@@ -201,6 +209,21 @@ func (h *Handler) UpdateDailyTask(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateDailyTask(id, req); err != nil {
+		if errors.Is(err, ErrDailyTaskNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		if errors.Is(err, ErrInvalidDailyTaskStatus) ||
+			errors.Is(err, ErrInvalidDailyTaskStatusTransition) {
+			c.JSON(400, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "update daily task failed",
@@ -224,6 +247,13 @@ func (h *Handler) DeleteDailyTask(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteDailyTask(id); err != nil {
+		if errors.Is(err, ErrDailyTaskNotFound) {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "delete daily task failed",

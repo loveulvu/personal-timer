@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+var (
+	ErrTaskNotFound            = errors.New("task not found")
+	ErrTaskMustBePlanned       = errors.New("task status must be planned")
+	ErrTaskMustBeRunning       = errors.New("task status must be running")
+	ErrTaskMustBePaused        = errors.New("task status must be paused")
+	ErrTaskMustBeRunningPaused = errors.New("task status must be running or paused")
+	ErrRunningSessionNotFound  = errors.New("running session not found")
+)
+
 type Repository struct {
 	db *sql.DB
 }
@@ -33,13 +42,13 @@ func (r *Repository) StartTask(taskID int64) error {
 	err = tx.QueryRow(query, taskID).Scan(&status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.New("task not found")
+			return ErrTaskNotFound
 		}
 		return err
 	}
 
 	if status != "planned" {
-		return errors.New("task status must be planned")
+		return ErrTaskMustBePlanned
 	}
 
 	insertSessionQuery := `
@@ -76,12 +85,12 @@ func (r *Repository) PauseTask(taskID int64) error {
 	err = tx.QueryRow(query, taskID).Scan(&status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.New("task not found")
+			return ErrTaskNotFound
 		}
 		return err
 	}
 	if status != "running" {
-		return errors.New("task status must be running")
+		return ErrTaskMustBeRunning
 	}
 	var sessionID int64
 	var startedAt time.Time
@@ -95,7 +104,7 @@ func (r *Repository) PauseTask(taskID int64) error {
 	err = tx.QueryRow(sessionQuery, taskID).Scan(&sessionID, &startedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.New("running session not found")
+			return ErrRunningSessionNotFound
 		}
 		return err
 	}
@@ -143,13 +152,13 @@ func (r *Repository) ResumeTask(taskID int64) error {
 	err = tx.QueryRow(query, taskID).Scan(&status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.New("task not found")
+			return ErrTaskNotFound
 		}
 		return err
 	}
 
 	if status != "paused" {
-		return errors.New("task status must be paused")
+		return ErrTaskMustBePaused
 	}
 
 	insertSessionQuery := `
@@ -192,13 +201,13 @@ func (r *Repository) FinishTask(taskID int64) error {
 	err = tx.QueryRow(statusQuery, taskID).Scan(&status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.New("task not found")
+			return ErrTaskNotFound
 		}
 		return err
 	}
 
 	if status != "running" && status != "paused" {
-		return errors.New("task status must be running or paused")
+		return ErrTaskMustBeRunningPaused
 	}
 
 	if status == "running" {
@@ -217,7 +226,7 @@ func (r *Repository) FinishTask(taskID int64) error {
 		err = tx.QueryRow(sessionQuery, taskID).Scan(&sessionID, &startedAt)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return errors.New("running session not found")
+				return ErrRunningSessionNotFound
 			}
 			return err
 		}
