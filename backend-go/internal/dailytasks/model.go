@@ -26,3 +26,17 @@ type CreateDailyTaskInput struct {
 	Title            string
 	EstimatedMinutes int
 }
+
+type UpdateDailyTaskRequest struct {
+	ProjectID        *int64 `json:"project_id"`
+	TaskDate         string `json:"task_date"`
+	Title            string `json:"title"`
+	EstimatedMinutes int    `json:"estimated_minutes"`
+}
+
+type UpdateDailyTaskInput struct {
+	ProjectID        *int64
+	TaskDate         string
+	Title            string
+	EstimatedMinutes int
+}

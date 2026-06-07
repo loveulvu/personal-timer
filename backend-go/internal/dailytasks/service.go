@@ -24,3 +24,22 @@ func (s *Service) CreateDailyTask(req CreateDailyTaskRequest) (int64, error) {
 func (s *Service) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 	return s.repo.ListDailyTasksByDate(date)
 }
+
+func (s *Service) GetDailyTaskByID(id int64) (*DailyTask, error) {
+	return s.repo.GetDailyTaskByID(id)
+}
+
+func (s *Service) UpdateDailyTask(id int64, req UpdateDailyTaskRequest) error {
+	input := UpdateDailyTaskInput{
+		ProjectID:        req.ProjectID,
+		TaskDate:         req.TaskDate,
+		Title:            strings.TrimSpace(req.Title),
+		EstimatedMinutes: req.EstimatedMinutes,
+	}
+
+	return s.repo.UpdateDailyTask(id, input)
+}
+
+func (s *Service) DeleteDailyTask(id int64) error {
+	return s.repo.DeleteDailyTask(id)
+}

@@ -69,3 +69,46 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 
 	return tasks, nil
 }
+
+func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
+	query := `
+		SELECT id, project_id, task_date, title, estimated_minutes, status, created_at, updated_at
+		FROM daily_tasks
+		WHERE id = ?
+	`
+
+	var task DailyTask
+	err := r.db.QueryRow(query, id).Scan(
+		&task.ID,
+		&task.ProjectID,
+		&task.TaskDate,
+		&task.Title,
+		&task.EstimatedMinutes,
+		&task.Status,
+		&task.CreatedAt,
+		&task.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+func (r *Repository) UpdateDailyTask(id int64, input UpdateDailyTaskInput) error {
+	query := `
+		UPDATE daily_tasks
+		SET project_id = ?, task_date = ?, title = ?, estimated_minutes = ?
+		WHERE id = ?
+	`
+
+	_, err := r.db.Exec(query, input.ProjectID, input.TaskDate, input.Title, input.EstimatedMinutes, id)
+	return err
+}
+
+func (r *Repository) DeleteDailyTask(id int64) error {
+	query := `DELETE FROM daily_tasks WHERE id = ?`
+
+	_, err := r.db.Exec(query, id)
+	return err
+}

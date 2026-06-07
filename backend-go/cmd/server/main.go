@@ -6,6 +6,7 @@ import (
 	"personal/internal/db"
 	"personal/internal/handler"
 	"personal/internal/projects"
+	"personal/internal/stats"
 	"personal/internal/timer"
 
 	"github.com/gin-gonic/gin"
@@ -35,6 +36,9 @@ func main() {
 
 	api.POST("/daily-tasks", dailyTaskHandler.CreateDailyTask)
 	api.GET("/daily-tasks", dailyTaskHandler.ListDailyTasksByDate)
+	api.GET("/daily-tasks/:id", dailyTaskHandler.GetDailyTaskByID)
+	api.PUT("/daily-tasks/:id", dailyTaskHandler.UpdateDailyTask)
+	api.DELETE("/daily-tasks/:id", dailyTaskHandler.DeleteDailyTask)
 	timerRepo := timer.NewRepository(mysqlDB)
 	timerService := timer.NewService(timerRepo)
 	timerHandler := timer.NewHandler(timerService)
@@ -43,6 +47,11 @@ func main() {
 	api.POST("/daily-tasks/:id/pause", timerHandler.PauseTask)
 	api.POST("/daily-tasks/:id/resume", timerHandler.ResumeTask)
 	api.POST("/daily-tasks/:id/finish", timerHandler.FinishTask)
+	statsRepo := stats.NewRepository(mysqlDB)
+	statsService := stats.NewService(statsRepo)
+	statsHandler := stats.NewHandler(statsService)
+
+	api.GET("/stats/daily", statsHandler.GetDailyStats)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}

@@ -108,7 +108,7 @@ func (h *Handler) FinishTask(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"status":  "ok",
-		"message": "task resume",
+		"message": "task finished",
 	})
 
 }
