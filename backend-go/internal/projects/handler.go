@@ -87,3 +87,66 @@ func (h *Handler) GetProjectByID(c *gin.Context) {
 	})
 
 }
+
+func (h *Handler) UpdateProject(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "invalid project id",
+		})
+		return
+	}
+
+	var req UpdateProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "invalid json",
+		})
+		return
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "need name",
+		})
+		return
+	}
+
+	if err := h.service.UpdateProject(id, req); err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "update project failed",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "ok",
+	})
+}
+
+func (h *Handler) DeleteProject(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "invalid project id",
+		})
+		return
+	}
+
+	if err := h.service.DeleteProject(id); err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "delete project failed",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "ok",
+	})
+}

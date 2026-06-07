@@ -25,6 +25,8 @@ func main() {
 	api.POST("/projects", projectHandler.CreateProject)
 	api.GET("/projects", projectHandler.ListProjects)
 	api.GET("/projects/:id", projectHandler.GetProjectByID)
+	api.PUT("/projects/:id", projectHandler.UpdateProject)
+	api.DELETE("/projects/:id", projectHandler.DeleteProject)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}

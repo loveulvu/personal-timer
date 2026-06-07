@@ -25,3 +25,17 @@ func (s *Service) CreateProject(req CreateProjectRequest) (int64, error) {
 func (s *Service) GetProjectByID(id int64) (*Project, error) {
 	return s.repo.GetProjectByID(id)
 }
+
+func (s *Service) UpdateProject(id int64, req UpdateProjectRequest) error {
+	input := UpdateProjectInput{
+		Name:        strings.TrimSpace(req.Name),
+		Description: req.Description,
+		IsFixed:     req.IsFixed,
+	}
+
+	return s.repo.UpdateProject(id, input)
+}
+
+func (s *Service) DeleteProject(id int64) error {
+	return s.repo.DeleteProject(id)
+}

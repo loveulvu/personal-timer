@@ -21,3 +21,15 @@ type CreateProjectInput struct {
 	Description string `json:"description"`
 	IsFixed     bool   `json:"is_fixed"`
 }
+
+type UpdateProjectRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IsFixed     bool   `json:"is_fixed"`
+}
+
+type UpdateProjectInput struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IsFixed     bool   `json:"is_fixed"`
+}

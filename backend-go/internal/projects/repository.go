@@ -89,3 +89,17 @@ func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 
 	return &p, nil
 }
+
+func (r *Repository) UpdateProject(id int64, input UpdateProjectInput) error {
+	query := `UPDATE projects SET name=?, description=?, is_fixed=? WHERE id=?`
+
+	_, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, id)
+	return err
+}
+
+func (r *Repository) DeleteProject(id int64) error {
+	query := `DELETE FROM projects WHERE id=?`
+
+	_, err := r.db.Exec(query, id)
+	return err
+}
