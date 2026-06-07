@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -61,4 +62,28 @@ func (h *Handler) ListProjects(c *gin.Context) {
 		"status": "ok",
 		"data":   projects,
 	})
+}
+func (h *Handler) GetProjectByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "invalid project id",
+		})
+		return
+	}
+	project, err := h.service.GetProjectByID(id)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "failed to get project",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"status": "ok",
+		"data":   project,
+	})
+
 }

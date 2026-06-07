@@ -66,3 +66,26 @@ ORDER BY id DESC
 
 	return projects, nil
 }
+func (r *Repository) GetProjectByID(id int64) (*Project, error) {
+	query := `
+		SELECT id, name, description, is_fixed, created_at, updated_at
+		FROM projects
+		WHERE id = ?
+	`
+
+	var p Project
+
+	err := r.db.QueryRow(query, id).Scan(
+		&p.ID,
+		&p.Name,
+		&p.Description,
+		&p.IsFixed,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &p, nil
+}

@@ -22,3 +22,6 @@ func (s *Service) CreateProject(req CreateProjectRequest) (int64, error) {
 
 	return s.repo.CreateProject(input)
 }
+func (s *Service) GetProjectByID(id int64) (*Project, error) {
+	return s.repo.GetProjectByID(id)
+}
