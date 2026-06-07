@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"personal/internal/dailytasks"
 	"personal/internal/db"
 	"personal/internal/handler"
 	"personal/internal/projects"
@@ -27,6 +28,11 @@ func main() {
 	api.GET("/projects/:id", projectHandler.GetProjectByID)
 	api.PUT("/projects/:id", projectHandler.UpdateProject)
 	api.DELETE("/projects/:id", projectHandler.DeleteProject)
+	dailyTaskRepo := dailytasks.NewRepository(mysqlDB)
+	dailyTaskService := dailytasks.NewService(dailyTaskRepo)
+	dailyTaskHandler := dailytasks.NewHandler(dailyTaskService)
+
+	api.POST("/daily-tasks", dailyTaskHandler.CreateDailyTask)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}
