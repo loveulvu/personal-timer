@@ -81,3 +81,36 @@ func (h *Handler) CreateDailyTask(c *gin.Context) {
 		"id":     id,
 	})
 }
+
+func (h *Handler) ListDailyTasksByDate(c *gin.Context) {
+	date := c.Query("date")
+	if date == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "date is required",
+		})
+		return
+	}
+
+	if _, err := time.Parse("2006-01-02", date); err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "date must be YYYY-MM-DD",
+		})
+		return
+	}
+
+	tasks, err := h.service.ListDailyTasksByDate(date)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "list daily tasks failed",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "ok",
+		"data":   tasks,
+	})
+}

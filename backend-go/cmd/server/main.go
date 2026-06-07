@@ -33,6 +33,7 @@ func main() {
 	dailyTaskHandler := dailytasks.NewHandler(dailyTaskService)
 
 	api.POST("/daily-tasks", dailyTaskHandler.CreateDailyTask)
+	api.GET("/daily-tasks", dailyTaskHandler.ListDailyTasksByDate)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}

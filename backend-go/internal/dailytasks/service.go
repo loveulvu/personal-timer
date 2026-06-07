@@ -20,3 +20,7 @@ func (s *Service) CreateDailyTask(req CreateDailyTaskRequest) (int64, error) {
 
 	return s.repo.CreateDailyTask(input)
 }
+
+func (s *Service) ListDailyTasksByDate(date string) ([]DailyTask, error) {
+	return s.repo.ListDailyTasksByDate(date)
+}
