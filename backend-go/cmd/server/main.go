@@ -42,6 +42,7 @@ func main() {
 	api.POST("/daily-tasks/:id/start", timerHandler.StartTask)
 	api.POST("/daily-tasks/:id/pause", timerHandler.PauseTask)
 	api.POST("/daily-tasks/:id/resume", timerHandler.ResumeTask)
+	api.POST("/daily-tasks/:id/finish", timerHandler.FinishTask)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}
