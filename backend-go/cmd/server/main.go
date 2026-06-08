@@ -10,6 +10,7 @@ import (
 	"personal/internal/stats"
 	"personal/internal/summaries"
 	"personal/internal/timer"
+	"personal/internal/timesessions"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -26,6 +27,9 @@ func main() {
 	api := r.Group("/api")
 	api.GET("/health", handler.Health)
 	api.GET("/health/db", handler.HealthDB(mysqlDB))
+	api.GET("/version", handler.Version)
+	api.GET("/config/status", handler.ConfigStatus(mysqlDB))
+	api.POST("/llm/test", handler.TestLLM)
 	projectRepo := projects.NewRepository(mysqlDB)
 	projectService := projects.NewService(projectRepo)
 	projectHandler := projects.NewHandler(projectService)
@@ -51,6 +55,11 @@ func main() {
 	api.POST("/daily-tasks/:id/pause", timerHandler.PauseTask)
 	api.POST("/daily-tasks/:id/resume", timerHandler.ResumeTask)
 	api.POST("/daily-tasks/:id/finish", timerHandler.FinishTask)
+	timeSessionRepo := timesessions.NewRepository(mysqlDB)
+	timeSessionService := timesessions.NewService(timeSessionRepo)
+	timeSessionHandler := timesessions.NewHandler(timeSessionService)
+
+	api.PUT("/time-sessions/:id", timeSessionHandler.UpdateTimeSession)
 	statsRepo := stats.NewRepository(mysqlDB)
 	statsService := stats.NewService(statsRepo)
 	statsHandler := stats.NewHandler(statsService)

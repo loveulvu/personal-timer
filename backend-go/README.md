@@ -3,6 +3,8 @@
 Personal Study Timer 是个人学习与项目执行计时工具的后端项目。当前阶段只完成
 后端 MVP，最终计划接入桌面端应用，不是 Web 前端。
 
+当前版本：`2.2.0 local API server`。后端已准备供未来桌面端应用调用。
+
 ## 技术栈
 
 - Go
@@ -52,6 +54,9 @@ Personal Study Timer 是个人学习与项目执行计时工具的后端项目�
 
 - `GET /api/health`
 - `GET /api/health/db`
+- `GET /api/version`
+- `GET /api/config/status`
+- `POST /api/llm/test`
 - `POST /api/projects`
 - `GET /api/projects`
 - `GET /api/projects/:id`
@@ -66,6 +71,7 @@ Personal Study Timer 是个人学习与项目执行计时工具的后端项目�
 - `POST /api/daily-tasks/:id/pause`
 - `POST /api/daily-tasks/:id/resume`
 - `POST /api/daily-tasks/:id/finish`
+- `PUT /api/time-sessions/:id`
 - `GET /api/stats/daily?date=YYYY-MM-DD`
 - `GET /api/stats/weekly?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
 - `POST /api/summaries/daily/generate`
@@ -80,7 +86,7 @@ weekly stats 不新建 weekly 表，实时从 `daily_tasks`、`time_sessions`、
 ## Backend smoke test
 
 当前项目仍然只做后端，最终计划接桌面端应用；暂不做 Web 前端、Redis、MQ、
-登录、多用户、月统计或分类系统。
+登录、多用户、月统计或分类系统，也暂不编写桌面端代码。
 
 以下示例假设服务运行在 `http://localhost:8085`，并使用 `jq` 读取返回 id：
 
@@ -91,6 +97,9 @@ WEEK_START=2026-06-08
 WEEK_END=2026-06-14
 
 curl "$BASE_URL/api/health"
+curl "$BASE_URL/api/version"
+curl "$BASE_URL/api/config/status"
+curl -X POST "$BASE_URL/api/llm/test"
 
 PROJECT_ID=$(curl -s -X POST "$BASE_URL/api/projects" \
   -H "Content-Type: application/json" \
@@ -104,6 +113,12 @@ TASK_ID=$(curl -s -X POST "$BASE_URL/api/daily-tasks" \
 
 curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/start"
 curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/pause"
+
+SESSION_ID=1 # replace with an ended time_sessions.id
+curl -X PUT "$BASE_URL/api/time-sessions/$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"started_at":"2026-06-08 10:00:00","ended_at":"2026-06-08 11:00:00"}'
+
 curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/resume"
 curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/finish"
 
