@@ -12,10 +12,12 @@ import (
 	"personal/internal/timer"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	mysqlDB, err := db.NewMySQL()
+	loadEnv()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,4 +70,20 @@ func main() {
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}
+}
+func loadEnv() {
+	paths := []string{
+		"../.env",
+		".env",
+		"/home/u1/projects/personal-study-timer/.env",
+	}
+
+	for _, path := range paths {
+		if err := godotenv.Load(path); err == nil {
+			log.Printf("loaded env file: %s", path)
+			return
+		}
+	}
+
+	log.Println("warning: no .env file loaded")
 }

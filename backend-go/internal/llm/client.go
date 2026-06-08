@@ -116,6 +116,5 @@ func (c *HTTPClient) GenerateSummary(ctx context.Context, prompt string) (string
 	if content == "" {
 		return "", ErrEmptyResponse
 	}
-
 	return content, nil
 }
