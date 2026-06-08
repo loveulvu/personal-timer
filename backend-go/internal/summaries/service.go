@@ -14,6 +14,7 @@ var (
 	ErrStatsQueryFailed     = errors.New("stats query failed")
 	ErrLLMGenerationFailed  = errors.New("LLM generation failed")
 	ErrSummaryPersistFailed = errors.New("summary persistence failed")
+	ErrSummaryAlreadyExists = errors.New("summary already exists")
 )
 
 type Service struct {
@@ -31,6 +32,14 @@ func NewService(repo *Repository, statsService *stats.Service, llmClient llm.Cli
 }
 
 func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*GenerateSummaryResult, error) {
+	exists, err := s.repo.SummaryExists(ctx, "daily", date, date)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrSummaryAlreadyExists
+	}
+
 	dailyStats, err := s.statsService.GetDailyStats(date)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrStatsQueryFailed, err)
@@ -54,6 +63,9 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		SourceData:  sourceData,
 	})
 	if err != nil {
+		if errors.Is(err, ErrSummaryAlreadyExists) {
+			return nil, ErrSummaryAlreadyExists
+		}
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
 
@@ -61,6 +73,14 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 }
 
 func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate string) (*GenerateSummaryResult, error) {
+	exists, err := s.repo.SummaryExists(ctx, "weekly", startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrSummaryAlreadyExists
+	}
+
 	weeklyStats, err := s.statsService.GetWeeklyStats(startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrStatsQueryFailed, err)
@@ -84,6 +104,9 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 		SourceData:  sourceData,
 	})
 	if err != nil {
+		if errors.Is(err, ErrSummaryAlreadyExists) {
+			return nil, ErrSummaryAlreadyExists
+		}
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
 
@@ -96,6 +119,10 @@ func (s *Service) ListSummaries(ctx context.Context, summaryType string) ([]Gene
 
 func (s *Service) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSummary, error) {
 	return s.repo.GetSummaryByID(ctx, id)
+}
+
+func (s *Service) DeleteSummary(ctx context.Context, id int64) error {
+	return s.repo.DeleteSummary(ctx, id)
 }
 
 func buildDailyPrompt(sourceData string) string {

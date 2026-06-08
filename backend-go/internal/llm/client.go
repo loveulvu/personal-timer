@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -14,8 +15,13 @@ import (
 )
 
 var (
-	ErrNotConfigured = errors.New("LLM is not configured")
-	ErrEmptyResponse = errors.New("LLM returned empty content")
+	ErrNotConfigured  = errors.New("LLM is not configured")
+	ErrMissingAPIKey  = errors.New("LLM_API_KEY is required")
+	ErrMissingBaseURL = errors.New("LLM_BASE_URL is required")
+	ErrMissingModel   = errors.New("LLM_MODEL is required")
+	ErrRequestFailed  = errors.New("LLM request failed")
+	ErrRequestTimeout = errors.New("LLM request timed out")
+	ErrEmptyResponse  = errors.New("LLM returned empty content")
 )
 
 type Client interface {
@@ -57,8 +63,14 @@ func NewClientFromEnv() *HTTPClient {
 }
 
 func (c *HTTPClient) GenerateSummary(ctx context.Context, prompt string) (string, error) {
-	if c.apiKey == "" || c.baseURL == "" || c.model == "" {
-		return "", ErrNotConfigured
+	if c.apiKey == "" {
+		return "", fmt.Errorf("%w: %w", ErrNotConfigured, ErrMissingAPIKey)
+	}
+	if c.baseURL == "" {
+		return "", fmt.Errorf("%w: %w", ErrNotConfigured, ErrMissingBaseURL)
+	}
+	if c.model == "" {
+		return "", fmt.Errorf("%w: %w", ErrNotConfigured, ErrMissingModel)
 	}
 
 	body, err := json.Marshal(chatRequest{
@@ -92,21 +104,24 @@ func (c *HTTPClient) GenerateSummary(ctx context.Context, prompt string) (string
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		if isTimeout(err) {
+			return "", fmt.Errorf("%w: %v", ErrRequestTimeout, err)
+		}
+		return "", fmt.Errorf("%w: %v", ErrRequestFailed, err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %v", ErrRequestFailed, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("LLM request failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
+		return "", fmt.Errorf("%w with status %d", ErrRequestFailed, resp.StatusCode)
 	}
 
 	var result chatResponse
 	if err := json.Unmarshal(responseBody, &result); err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %v", ErrRequestFailed, err)
 	}
 	if len(result.Choices) == 0 {
 		return "", ErrEmptyResponse
@@ -117,4 +132,13 @@ func (c *HTTPClient) GenerateSummary(ctx context.Context, prompt string) (string
 		return "", ErrEmptyResponse
 	}
 	return content, nil
+}
+
+func isTimeout(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }

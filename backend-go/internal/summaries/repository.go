@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 var ErrSummaryNotFound = errors.New("summary not found")
@@ -33,10 +35,35 @@ func (r *Repository) CreateSummary(ctx context.Context, input CreateSummaryInput
 		input.SourceData,
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return 0, ErrSummaryAlreadyExists
+		}
 		return 0, err
 	}
 
 	return result.LastInsertId()
+}
+
+func (r *Repository) SummaryExists(ctx context.Context, summaryType, startDate, endDate string) (bool, error) {
+	query := `
+		SELECT 1
+		FROM generated_summaries
+		WHERE summary_type = ?
+			AND start_date = ?
+			AND end_date = ?
+		LIMIT 1
+	`
+
+	var exists int
+	err := r.db.QueryRowContext(ctx, query, summaryType, startDate, endDate).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (r *Repository) ListSummaries(ctx context.Context, summaryType string) ([]GeneratedSummary, error) {
@@ -122,4 +149,26 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 	}
 
 	return &summary, nil
+}
+
+func (r *Repository) DeleteSummary(ctx context.Context, id int64) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM generated_summaries WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrSummaryNotFound
+	}
+
+	return nil
+}
+
+func isDuplicateKey(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

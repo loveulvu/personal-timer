@@ -31,9 +31,9 @@ Personal Study Timer 是个人学习与项目执行计时工具的后端项目�
 2. 如果需要生成总结，配置 LLM 环境变量：
 
    ```text
-   LLM_API_KEY=
-   LLM_BASE_URL=
-   LLM_MODEL=
+   LLM_API_KEY=your_api_key_here
+   LLM_BASE_URL=https://api.openai.com/v1
+   LLM_MODEL=gpt-4o-mini
    ```
 
    `LLM_BASE_URL` 使用兼容 `/chat/completions` 的 HTTP API 地址，不要把真实
@@ -72,8 +72,58 @@ Personal Study Timer 是个人学习与项目执行计时工具的后端项目�
 - `POST /api/summaries/weekly/generate`
 - `GET /api/summaries?type=daily|weekly`
 - `GET /api/summaries/:id`
+- `DELETE /api/summaries/:id`
 
 weekly stats 不新建 weekly 表，实时从 `daily_tasks`、`time_sessions`、
 `projects` 聚合。当前不强制日期范围必须正好 7 天，但推荐传一周范围。
+
+## Backend smoke test
+
+当前项目仍然只做后端，最终计划接桌面端应用；暂不做 Web 前端、Redis、MQ、
+登录、多用户、月统计或分类系统。
+
+以下示例假设服务运行在 `http://localhost:8085`，并使用 `jq` 读取返回 id：
+
+```bash
+BASE_URL=http://localhost:8085
+DATE=2026-06-08
+WEEK_START=2026-06-08
+WEEK_END=2026-06-14
+
+curl "$BASE_URL/api/health"
+
+PROJECT_ID=$(curl -s -X POST "$BASE_URL/api/projects" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Study","description":"Backend smoke test","is_fixed":false}' \
+  | jq -r '.id')
+
+TASK_ID=$(curl -s -X POST "$BASE_URL/api/daily-tasks" \
+  -H "Content-Type: application/json" \
+  -d "{\"project_id\":$PROJECT_ID,\"task_date\":\"$DATE\",\"title\":\"Read docs\",\"estimated_minutes\":25}" \
+  | jq -r '.id')
+
+curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/start"
+curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/pause"
+curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/resume"
+curl -X POST "$BASE_URL/api/daily-tasks/$TASK_ID/finish"
+
+curl "$BASE_URL/api/stats/daily?date=$DATE"
+curl "$BASE_URL/api/stats/weekly?start_date=$WEEK_START&end_date=$WEEK_END"
+
+DAILY_SUMMARY_ID=$(curl -s -X POST "$BASE_URL/api/summaries/daily/generate" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$DATE\"}" \
+  | jq -r '.data.summary_id')
+
+WEEKLY_SUMMARY_ID=$(curl -s -X POST "$BASE_URL/api/summaries/weekly/generate" \
+  -H "Content-Type: application/json" \
+  -d "{\"start_date\":\"$WEEK_START\",\"end_date\":\"$WEEK_END\"}" \
+  | jq -r '.data.summary_id')
+
+curl "$BASE_URL/api/summaries?type=daily"
+curl "$BASE_URL/api/summaries/$DAILY_SUMMARY_ID"
+curl -X DELETE "$BASE_URL/api/summaries/$DAILY_SUMMARY_ID"
+curl -X DELETE "$BASE_URL/api/summaries/$WEEKLY_SUMMARY_ID"
+```
 
 当前 README 是阶段性简略版本，后续桌面端完成后再重构完整文档。
