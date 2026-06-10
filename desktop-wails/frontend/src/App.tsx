@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, StartupStatus } from './api'
 import { ProjectsPage } from './ProjectsPage'
+import { StatsPage } from './StatsPage'
+import { SummariesPage } from './SummariesPage'
 import { TodayPage } from './TodayPage'
 
-type Page = 'today' | 'projects'
+type Page = 'today' | 'projects' | 'stats' | 'summaries'
 
 function App() {
   const [page, setPage] = useState<Page>('today')
@@ -65,6 +67,20 @@ function App() {
         >
           Projects
         </button>
+        <button
+          type="button"
+          className={page === 'stats' ? 'active' : ''}
+          onClick={() => setPage('stats')}
+        >
+          Stats
+        </button>
+        <button
+          type="button"
+          className={page === 'summaries' ? 'active' : ''}
+          onClick={() => setPage('summaries')}
+        >
+          Summaries
+        </button>
       </nav>
 
       <section className={`status ${connected ? 'ok' : 'error'}`}>
@@ -80,11 +96,12 @@ function App() {
         <div className="message error">Backend is not running. Please start backend-go first.</div>
       )}
 
-      {page === 'today' ? (
+      {page === 'today' && (
         <TodayPage connected={connected} openProjects={() => setPage('projects')} />
-      ) : (
-        <ProjectsPage connected={connected} />
       )}
+      {page === 'projects' && <ProjectsPage connected={connected} />}
+      {page === 'stats' && <StatsPage connected={connected} />}
+      {page === 'summaries' && <SummariesPage connected={connected} />}
     </main>
   )
 }

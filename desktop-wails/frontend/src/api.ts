@@ -50,6 +50,72 @@ export type ProjectInput = {
   is_fixed: boolean
 }
 
+export type DailyTaskStat = {
+  task_id: number
+  title: string
+  status: string
+  estimated_minutes: number
+  actual_seconds: number
+  actual_minutes: number
+}
+
+export type DailyStats = {
+  date: string
+  total_seconds: number
+  total_minutes: number
+  completed_count: number
+  unfinished_count: number
+  tasks: DailyTaskStat[]
+}
+
+export type WeeklyDayStat = {
+  date: string
+  total_seconds: number
+  total_minutes: number
+  completed_count: number
+  unfinished_count: number
+}
+
+export type WeeklyProjectStat = {
+  project_id: number
+  project_name: string
+  task_count: number
+  completed_count: number
+  total_seconds: number
+  total_minutes: number
+}
+
+export type WeeklyStats = {
+  start_date: string
+  end_date: string
+  total_seconds: number
+  total_minutes: number
+  completed_count: number
+  unfinished_count: number
+  days: WeeklyDayStat[]
+  projects: WeeklyProjectStat[]
+}
+
+export type GenerateSummaryResult = {
+  summary_id: number
+  content: string
+}
+
+export type Summary = {
+  id: number
+  summary_type: 'daily' | 'weekly'
+  start_date: string
+  end_date: string
+  content: string
+  source_data?: unknown
+  created_at: string
+}
+
+export type LLMTestResponse = {
+  status: string
+  message: string
+}
+
 export const api = {
   getStartupStatus: () => AppBindings.GetStartupStatus() as Promise<StartupStatus>,
   listDailyTasks: (date: string) => AppBindings.ListDailyTasks(date) as Promise<DailyTask[]>,
@@ -65,5 +131,17 @@ export const api = {
     AppBindings.CreateProject(input) as Promise<{ id: number }>,
   updateProject: (id: number, input: ProjectInput) => AppBindings.UpdateProject(id, input),
   deleteProject: (id: number) => AppBindings.DeleteProject(id),
+  getDailyStats: (date: string) => AppBindings.GetDailyStats(date) as Promise<DailyStats>,
+  getWeeklyStats: (startDate: string, endDate: string) =>
+    AppBindings.GetWeeklyStats(startDate, endDate) as Promise<WeeklyStats>,
+  generateDailySummary: (date: string) =>
+    AppBindings.GenerateDailySummary(date) as Promise<GenerateSummaryResult>,
+  generateWeeklySummary: (startDate: string, endDate: string) =>
+    AppBindings.GenerateWeeklySummary(startDate, endDate) as Promise<GenerateSummaryResult>,
+  getSummaries: (summaryType: string) =>
+    AppBindings.GetSummaries(summaryType) as Promise<Summary[]>,
+  getSummary: (id: number) => AppBindings.GetSummary(id) as Promise<Summary>,
+  deleteSummary: (id: number) => AppBindings.DeleteSummary(id),
+  testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
 }
 import * as AppBindings from '../wailsjs/go/main/App'

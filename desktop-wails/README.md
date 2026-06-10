@@ -10,16 +10,20 @@ Implemented:
 - create daily task
 - timer start / pause / resume / finish
 - Projects CRUD
+- Daily stats
+- Weekly stats
+- LLM test
+- Generate daily summary
+- Generate weekly summary
+- Summaries list / detail / delete
 
 Not implemented yet:
 
-- stats page
-- summaries page
-- weekly stats page
-- LLM test page
 - settings page
 - time sessions correction UI
 - auto-start backend process
+- automatic summaries
+- txt / PDF export
 - tray, notifications, shortcuts
 - packaging or release config
 
@@ -60,4 +64,4 @@ The user must start `backend-go` manually before using the desktop app. The desk
 automatically start the backend process.
 
 The current desktop scope does not include login or multi-user permissions, Redis, MQ, monthly
-statistics, or a category system.
+statistics, a category system, automatic summaries, or export.

@@ -128,6 +128,78 @@ func (c *Client) DeleteProject(ctx context.Context, id int64) error {
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
+func (c *Client) GetDailyStats(ctx context.Context, date string) (*DailyStats, error) {
+	path := "/api/stats/daily?date=" + url.QueryEscape(date)
+	var result dataResponse[DailyStats]
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
+func (c *Client) GetWeeklyStats(ctx context.Context, startDate, endDate string) (*WeeklyStats, error) {
+	values := url.Values{}
+	values.Set("start_date", startDate)
+	values.Set("end_date", endDate)
+	var result dataResponse[WeeklyStats]
+	if err := c.doJSON(ctx, http.MethodGet, "/api/stats/weekly?"+values.Encode(), nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
+func (c *Client) GenerateDailySummary(ctx context.Context, date string) (*GenerateSummaryResult, error) {
+	var result dataResponse[GenerateSummaryResult]
+	req := GenerateDailySummaryRequest{Date: date}
+	if err := c.doJSON(ctx, http.MethodPost, "/api/summaries/daily/generate", req, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
+func (c *Client) GenerateWeeklySummary(ctx context.Context, startDate, endDate string) (*GenerateSummaryResult, error) {
+	var result dataResponse[GenerateSummaryResult]
+	req := GenerateWeeklySummaryRequest{StartDate: startDate, EndDate: endDate}
+	if err := c.doJSON(ctx, http.MethodPost, "/api/summaries/weekly/generate", req, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
+func (c *Client) GetSummaries(ctx context.Context, summaryType string) ([]Summary, error) {
+	path := "/api/summaries"
+	if summaryType != "" {
+		path += "?type=" + url.QueryEscape(summaryType)
+	}
+	var result dataResponse[[]Summary]
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Data, nil
+}
+
+func (c *Client) GetSummary(ctx context.Context, id int64) (*Summary, error) {
+	var result dataResponse[Summary]
+	path := fmt.Sprintf("/api/summaries/%d", id)
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
+func (c *Client) DeleteSummary(ctx context.Context, id int64) error {
+	path := fmt.Sprintf("/api/summaries/%d", id)
+	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
+}
+
+func (c *Client) TestLLM(ctx context.Context) (*LLMTestResponse, error) {
+	var result LLMTestResponse
+	if err := c.doJSON(ctx, http.MethodPost, "/api/llm/test", nil, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func (c *Client) TimerAction(ctx context.Context, id int64, action string) error {
 	switch action {
 	case "start", "pause", "resume", "finish":

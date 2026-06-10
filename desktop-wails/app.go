@@ -53,6 +53,38 @@ func (a *App) DeleteProject(id int64) error {
 	return a.client.DeleteProject(a.ctx, id)
 }
 
+func (a *App) GetDailyStats(date string) (*api.DailyStats, error) {
+	return a.client.GetDailyStats(a.ctx, date)
+}
+
+func (a *App) GetWeeklyStats(startDate string, endDate string) (*api.WeeklyStats, error) {
+	return a.client.GetWeeklyStats(a.ctx, startDate, endDate)
+}
+
+func (a *App) GenerateDailySummary(date string) (*api.GenerateSummaryResult, error) {
+	return a.client.GenerateDailySummary(a.ctx, date)
+}
+
+func (a *App) GenerateWeeklySummary(startDate string, endDate string) (*api.GenerateSummaryResult, error) {
+	return a.client.GenerateWeeklySummary(a.ctx, startDate, endDate)
+}
+
+func (a *App) GetSummaries(summaryType string) ([]api.Summary, error) {
+	return a.client.GetSummaries(a.ctx, summaryType)
+}
+
+func (a *App) GetSummary(id int64) (*api.Summary, error) {
+	return a.client.GetSummary(a.ctx, id)
+}
+
+func (a *App) DeleteSummary(id int64) error {
+	return a.client.DeleteSummary(a.ctx, id)
+}
+
+func (a *App) TestLLM() (*api.LLMTestResponse, error) {
+	return a.client.TestLLM(a.ctx)
+}
+
 func (a *App) StartTask(id int64) error {
 	return a.client.TimerAction(a.ctx, id, "start")
 }

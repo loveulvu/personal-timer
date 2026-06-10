@@ -14,8 +14,24 @@ export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
 
+export function DeleteSummary(arg1) {
+  return window['go']['main']['App']['DeleteSummary'](arg1);
+}
+
 export function FinishTask(arg1) {
   return window['go']['main']['App']['FinishTask'](arg1);
+}
+
+export function GenerateDailySummary(arg1) {
+  return window['go']['main']['App']['GenerateDailySummary'](arg1);
+}
+
+export function GenerateWeeklySummary(arg1, arg2) {
+  return window['go']['main']['App']['GenerateWeeklySummary'](arg1, arg2);
+}
+
+export function GetDailyStats(arg1) {
+  return window['go']['main']['App']['GetDailyStats'](arg1);
 }
 
 export function GetProject(arg1) {
@@ -28,6 +44,18 @@ export function GetProjects() {
 
 export function GetStartupStatus() {
   return window['go']['main']['App']['GetStartupStatus']();
+}
+
+export function GetSummaries(arg1) {
+  return window['go']['main']['App']['GetSummaries'](arg1);
+}
+
+export function GetSummary(arg1) {
+  return window['go']['main']['App']['GetSummary'](arg1);
+}
+
+export function GetWeeklyStats(arg1, arg2) {
+  return window['go']['main']['App']['GetWeeklyStats'](arg1, arg2);
 }
 
 export function ListDailyTasks(arg1) {
@@ -44,6 +72,10 @@ export function ResumeTask(arg1) {
 
 export function StartTask(arg1) {
   return window['go']['main']['App']['StartTask'](arg1);
+}
+
+export function TestLLM() {
+  return window['go']['main']['App']['TestLLM']();
 }
 
 export function UpdateProject(arg1, arg2) {

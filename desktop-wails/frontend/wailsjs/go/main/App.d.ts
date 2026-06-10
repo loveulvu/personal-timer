@@ -8,13 +8,27 @@ export function CreateProject(arg1:api.ProjectInput):Promise<api.CreateResponse>
 
 export function DeleteProject(arg1:number):Promise<void>;
 
+export function DeleteSummary(arg1:number):Promise<void>;
+
 export function FinishTask(arg1:number):Promise<void>;
+
+export function GenerateDailySummary(arg1:string):Promise<api.GenerateSummaryResult>;
+
+export function GenerateWeeklySummary(arg1:string,arg2:string):Promise<api.GenerateSummaryResult>;
+
+export function GetDailyStats(arg1:string):Promise<api.DailyStats>;
 
 export function GetProject(arg1:number):Promise<api.Project>;
 
 export function GetProjects():Promise<Array<api.Project>>;
 
 export function GetStartupStatus():Promise<api.StartupStatus>;
+
+export function GetSummaries(arg1:string):Promise<Array<api.Summary>>;
+
+export function GetSummary(arg1:number):Promise<api.Summary>;
+
+export function GetWeeklyStats(arg1:string,arg2:string):Promise<api.WeeklyStats>;
 
 export function ListDailyTasks(arg1:string):Promise<Array<api.DailyTask>>;
 
@@ -23,5 +37,7 @@ export function PauseTask(arg1:number):Promise<void>;
 export function ResumeTask(arg1:number):Promise<void>;
 
 export function StartTask(arg1:number):Promise<void>;
+
+export function TestLLM():Promise<api.LLMTestResponse>;
 
 export function UpdateProject(arg1:number,arg2:api.ProjectInput):Promise<void>;

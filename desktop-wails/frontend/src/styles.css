@@ -152,6 +152,12 @@ p {
   background: #fff8df;
 }
 
+.message.success {
+  border: 1px solid #8fd19e;
+  color: #116329;
+  background: #edfff1;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -310,6 +316,118 @@ p {
   justify-self: start;
 }
 
+.page-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.inline-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.inline-form label {
+  min-width: 180px;
+}
+
+.stack-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-cards div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfd;
+}
+
+.stat-cards strong {
+  font-size: 24px;
+}
+
+.stat-cards span {
+  color: #5c6675;
+  font-size: 13px;
+}
+
+.section-heading {
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #e3e8f0;
+  padding: 9px;
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  color: #4b5563;
+  background: #f6f8fa;
+}
+
+.summary-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfd;
+}
+
+.summary-preview {
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+
+.content-block {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f6f8fa;
+}
+
 @media (max-width: 760px) {
   .content-grid,
   .projects-grid {
@@ -324,5 +442,14 @@ p {
 
   .panel-title label {
     width: 100%;
+  }
+
+  .summary-tools,
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-row {
+    flex-direction: column;
   }
 }
