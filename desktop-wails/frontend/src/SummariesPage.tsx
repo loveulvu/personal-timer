@@ -1,239 +1,101 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { DeleteOutlined, EyeOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, DatePicker, Descriptions, Modal, Select, Space, Table, Typography, message } from 'antd'
+import dayjs from 'dayjs'
+import { useEffect, useState } from 'react'
 import { api, GenerateSummaryResult, Summary } from './api'
+import { StatusTag } from './components/StatusTag'
 
-type SummariesPageProps = {
-  connected: boolean
-}
-
+type Props = { connected: boolean }
 type SummaryFilter = '' | 'daily' | 'weekly'
 
-export function SummariesPage({ connected }: SummariesPageProps) {
-  const today = todayString()
+export function SummariesPage({ connected }: Props) {
+  const today = dayjs()
   const [dailyDate, setDailyDate] = useState(today)
-  const [weeklyStart, setWeeklyStart] = useState(daysBefore(today, 6))
-  const [weeklyEnd, setWeeklyEnd] = useState(today)
+  const [weeklyRange, setWeeklyRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([today.subtract(6, 'day'), today])
   const [filter, setFilter] = useState<SummaryFilter>('')
   const [summaries, setSummaries] = useState<Summary[]>([])
   const [detail, setDetail] = useState<Summary | null>(null)
   const [generated, setGenerated] = useState<GenerateSummaryResult | null>(null)
-  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function loadSummaries(selectedFilter = filter) {
     if (!connected) return
-    setLoading(true)
-    setError('')
-    try {
-      setSummaries(await api.getSummaries(selectedFilter))
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError('')
+    try { setSummaries(await api.getSummaries(selectedFilter)) }
+    catch (err) { setError(errorMessage(err)) } finally { setLoading(false) }
   }
 
   async function testLLM() {
-    setLoading(true)
-    setError('')
-    setMessage('')
-    try {
-      const result = await api.testLLM()
-      setMessage(result.message || 'LLM connection works')
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function generateDaily(event: FormEvent) {
-    event.preventDefault()
-    await generate(() => api.generateDailySummary(dailyDate))
-  }
-
-  async function generateWeekly(event: FormEvent) {
-    event.preventDefault()
-    await generate(() => api.generateWeeklySummary(weeklyStart, weeklyEnd))
+    setLoading(true); setError('')
+    try { const result = await api.testLLM(); message.success(result.message || 'LLM connection works') }
+    catch (err) { const text = errorMessage(err); setError(text); message.error(text) } finally { setLoading(false) }
   }
 
   async function generate(action: () => Promise<GenerateSummaryResult>) {
-    setLoading(true)
-    setError('')
-    setMessage('')
-    setGenerated(null)
-    try {
-      setGenerated(await action())
-      setMessage('Summary generated successfully.')
-      await loadSummaries(filter)
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError(''); setGenerated(null)
+    try { setGenerated(await action()); await loadSummaries(filter); message.success('Summary generated successfully') }
+    catch (err) { const text = errorMessage(err); setError(text); message.error(text) } finally { setLoading(false) }
   }
 
   async function viewSummary(id: number) {
-    setLoading(true)
-    setError('')
-    try {
-      setDetail(await api.getSummary(id))
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError('')
+    try { setDetail(await api.getSummary(id)) } catch (err) { setError(errorMessage(err)) } finally { setLoading(false) }
   }
 
-  async function deleteSummary(summary: Summary) {
-    if (!window.confirm(`Delete ${summary.summary_type} summary #${summary.id}?`)) return
-    setLoading(true)
-    setError('')
-    try {
-      await api.deleteSummary(summary.id)
-      if (detail?.id === summary.id) setDetail(null)
-      await loadSummaries(filter)
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+  function confirmDelete(summary: Summary) {
+    Modal.confirm({
+      title: `Delete ${summary.summary_type} summary #${summary.id}?`,
+      okText: 'Delete', okButtonProps: { danger: true },
+      onOk: async () => {
+        try { await api.deleteSummary(summary.id); if (detail?.id === summary.id) setDetail(null); await loadSummaries(filter); message.success('Summary deleted') }
+        catch (err) { const text = errorMessage(err); setError(text); message.error(text) }
+      },
+    })
   }
 
-  useEffect(() => {
-    if (connected) loadSummaries(filter)
-  }, [connected, filter])
+  useEffect(() => { if (connected) loadSummaries(filter) }, [connected, filter])
 
-  return (
-    <div className="page-stack">
-      {error && <div className="message error">{error}</div>}
-      {message && <div className="message success">{message}</div>}
+  const columns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: 'Type', dataIndex: 'summary_type', key: 'summary_type', render: (value: string) => <StatusTag value={value} /> },
+    { title: 'Range', key: 'range', render: (_: unknown, summary: Summary) => `${summary.start_date} to ${summary.end_date}` },
+    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: formatDate },
+    { title: 'Content preview', dataIndex: 'content', key: 'content', ellipsis: true, render: preview },
+    { title: 'Actions', key: 'actions', render: (_: unknown, summary: Summary) => <Space><Button icon={<EyeOutlined />} onClick={() => viewSummary(summary.id)}>View</Button><Button danger icon={<DeleteOutlined />} onClick={() => confirmDelete(summary)}>Delete</Button></Space> },
+  ]
 
-      <section className="summary-tools">
-        <section className="panel">
-          <h2>LLM Test</h2>
-          <p className="muted">Tests the configured LLM connection without exposing the API key.</p>
-          <button type="button" onClick={testLLM} disabled={!connected || loading}>Test LLM</button>
-        </section>
-
-        <section className="panel">
-          <h2>Generate Daily Summary</h2>
-          <form className="stack-form" onSubmit={generateDaily}>
-            <label>date<input type="date" value={dailyDate} onChange={(event) => setDailyDate(event.target.value)} /></label>
-            <button type="submit" disabled={!connected || loading}>Generate Daily Summary</button>
-          </form>
-        </section>
-
-        <section className="panel">
-          <h2>Generate Weekly Summary</h2>
-          <form className="stack-form" onSubmit={generateWeekly}>
-            <label>start_date<input type="date" value={weeklyStart} onChange={(event) => setWeeklyStart(event.target.value)} /></label>
-            <label>end_date<input type="date" value={weeklyEnd} onChange={(event) => setWeeklyEnd(event.target.value)} /></label>
-            <button type="submit" disabled={!connected || loading}>Generate Weekly Summary</button>
-          </form>
-        </section>
-      </section>
-
-      {generated && (
-        <section className="panel">
-          <h2>Generated Summary #{generated.summary_id}</h2>
-          <pre className="content-block">{generated.content}</pre>
-        </section>
-      )}
-
-      <section className="panel">
-        <div className="panel-title">
-          <div>
-            <h2>Summaries</h2>
-            <p className="muted">Generated daily and weekly summaries.</p>
-          </div>
-          <label>
-            type
-            <select value={filter} onChange={(event) => setFilter(event.target.value as SummaryFilter)}>
-              <option value="">all</option>
-              <option value="daily">daily</option>
-              <option value="weekly">weekly</option>
-            </select>
-          </label>
-        </div>
-        {loading && <p className="muted">Loading...</p>}
-        {!loading && summaries.length === 0 && <p className="muted">No summaries found.</p>}
-        <div className="summary-list">
-          {summaries.map((summary) => (
-            <article key={summary.id} className="summary-row">
-              <div>
-                <div className="project-heading">
-                  <h3>{summary.summary_type} summary</h3>
-                  <span className="project-id">#{summary.id}</span>
-                </div>
-                <p className="muted">
-                  {summary.start_date} to {summary.end_date} | created: {formatDate(summary.created_at)}
-                </p>
-                <p className="summary-preview">{preview(summary.content)}</p>
-              </div>
-              <div className="actions">
-                <button type="button" onClick={() => viewSummary(summary.id)} disabled={loading}>View</button>
-                <button type="button" className="danger-button" onClick={() => deleteSummary(summary)} disabled={loading}>Delete</button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {detail && (
-        <section className="panel">
-          <div className="panel-title">
-            <h2>Summary Detail #{detail.id}</h2>
-            <button type="button" className="secondary-button" onClick={() => setDetail(null)}>Close</button>
-          </div>
-          <p className="muted">{detail.summary_type} | {detail.start_date} to {detail.end_date}</p>
-          <h3 className="section-heading">Content</h3>
-          <pre className="content-block">{detail.content}</pre>
-          {detail.source_data !== undefined && (
-            <>
-              <h3 className="section-heading">Source Data</h3>
-              <pre className="content-block">{formatSourceData(detail.source_data)}</pre>
-            </>
-          )}
-        </section>
-      )}
+  return <div className="page-stack">
+    {error && <Alert type="error" showIcon title={error} />}
+    <div className="summary-tools">
+      <Card title="LLM Test"><Typography.Paragraph type="secondary">Tests the configured LLM connection without exposing the API key.</Typography.Paragraph><Button icon={<ExperimentOutlined />} onClick={testLLM} loading={loading} disabled={!connected}>Test LLM</Button></Card>
+      <Card title="Generate Daily Summary"><Space orientation="vertical"><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={() => generate(() => api.generateDailySummary(dailyDate.format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>Generate Daily Summary</Button></Space></Card>
+      <Card title="Generate Weekly Summary"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>Generate Weekly Summary</Button></Space></Card>
     </div>
-  )
+
+    {generated && <Card title={`Generated Summary #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph></Card>}
+
+    <Card title="Summaries" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: 'all' }, { value: 'daily', label: 'daily' }, { value: 'weekly', label: 'weekly' }]} />}>
+      <Table rowKey="id" loading={loading} dataSource={summaries} columns={columns} pagination={{ pageSize: 8 }} />
+    </Card>
+
+    <Modal title={`Summary Detail #${detail?.id ?? ''}`} open={detail !== null} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>Close</Button>} width={760}>
+      {detail && <>
+        <Descriptions size="small" column={2} items={[
+          { key: 'type', label: 'Type', children: <StatusTag value={detail.summary_type} /> },
+          { key: 'created', label: 'Created', children: formatDate(detail.created_at) },
+          { key: 'start', label: 'Start date', children: detail.start_date },
+          { key: 'end', label: 'End date', children: detail.end_date },
+        ]} />
+        <Typography.Title level={5}>Content</Typography.Title>
+        <pre className="content-block">{detail.content}</pre>
+        {detail.source_data !== undefined && <><Typography.Title level={5}>Source Data</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
+      </>}
+    </Modal>
+  </div>
 }
 
-function preview(content: string) {
-  return content.length > 180 ? `${content.slice(0, 180)}...` : content
-}
-
-function formatSourceData(sourceData: unknown) {
-  if (typeof sourceData === 'string') return sourceData
-  try {
-    return JSON.stringify(sourceData, null, 2)
-  } catch {
-    return String(sourceData)
-  }
-}
-
-function formatDate(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
-}
-
-function todayString() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
-
-function daysBefore(date: string, count: number) {
-  const value = new Date(`${date}T00:00:00`)
-  value.setDate(value.getDate() - count)
-  const offset = value.getTimezoneOffset()
-  return new Date(value.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
-
-function errorMessage(err: unknown) {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'string') return err
-  return 'Unknown error'
-}
+function preview(content: string) { return content.length > 140 ? `${content.slice(0, 140)}...` : content }
+function formatSourceData(sourceData: unknown) { if (typeof sourceData === 'string') return sourceData; try { return JSON.stringify(sourceData, null, 2) } catch { return String(sourceData) } }
+function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString() }
+function errorMessage(err: unknown) { return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error' }

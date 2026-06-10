@@ -1,54 +1,33 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { PauseCircleOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons'
+import { Alert, Button, Calendar, Card, DatePicker, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd'
+import dayjs, { Dayjs } from 'dayjs'
+import { useEffect, useMemo, useState } from 'react'
 import { api, DailyTask, Project } from './api'
+import { StatusTag } from './components/StatusTag'
 
-type TodayPageProps = {
-  connected: boolean
-  openProjects: () => void
-}
+type Props = { connected: boolean; openProjects: () => void }
+type TaskForm = { projectId: number; title: string; estimatedMinutes: number }
 
-type TaskForm = {
-  projectId: string
-  title: string
-  estimatedMinutes: string
-}
-
-export function TodayPage({ connected, openProjects }: TodayPageProps) {
+export function TodayPage({ connected, openProjects }: Props) {
   const [date, setDate] = useState(todayString())
   const [tasks, setTasks] = useState<DailyTask[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [form, setForm] = useState<TaskForm>({
-    projectId: '',
-    title: '',
-    estimatedMinutes: '25',
-  })
   const [loading, setLoading] = useState(false)
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [projectsError, setProjectsError] = useState('')
-
-  const projectNames = useMemo(
-    () => new Map(projects.map((project) => [project.id, project.name])),
-    [projects],
-  )
+  const [form] = Form.useForm<TaskForm>()
+  const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
 
   async function loadProjects() {
     if (!connected) return
     setProjectsLoading(true)
-    setProjectsError('')
     try {
       const result = await api.getProjects()
       setProjects(result)
-      setForm((current) => {
-        const selectedStillExists = result.some(
-          (project) => String(project.id) === current.projectId,
-        )
-        return {
-          ...current,
-          projectId: selectedStillExists ? current.projectId : String(result[0]?.id ?? ''),
-        }
-      })
+      const selected = form.getFieldValue('projectId')
+      if (!result.some((project) => project.id === selected)) form.setFieldValue('projectId', result[0]?.id)
     } catch (err) {
-      setProjectsError(errorMessage(err))
+      setError(errorMessage(err))
     } finally {
       setProjectsLoading(false)
     }
@@ -67,38 +46,20 @@ export function TodayPage({ connected, openProjects }: TodayPageProps) {
     }
   }
 
-  async function createTask(event: FormEvent) {
-    event.preventDefault()
-    const projectId = Number(form.projectId)
-    const estimatedMinutes = Number(form.estimatedMinutes)
-    if (projects.length === 0) {
-      setError('No projects yet. Create a project first.')
-      return
-    }
-    if (!Number.isInteger(projectId) || projectId <= 0) {
-      setError('Please select a project.')
-      return
-    }
-    if (!form.title.trim()) {
-      setError('title is required')
-      return
-    }
-    if (!Number.isInteger(estimatedMinutes) || estimatedMinutes <= 0) {
-      setError('estimated_minutes must be greater than 0')
-      return
-    }
-
+  async function createTask(values: TaskForm) {
+    if (projects.length === 0) return setError('No projects yet. Create a project first.')
     setLoading(true)
     setError('')
     try {
       await api.createDailyTask({
-        project_id: projectId,
+        project_id: values.projectId,
         task_date: date,
-        title: form.title.trim(),
-        estimated_minutes: estimatedMinutes,
+        title: values.title.trim(),
+        estimated_minutes: values.estimatedMinutes,
       })
-      setForm({ projectId: form.projectId, title: '', estimatedMinutes: '25' })
+      form.setFieldsValue({ title: '', estimatedMinutes: 25 })
       await loadTasks(date)
+      message.success('Daily task created')
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -115,6 +76,7 @@ export function TodayPage({ connected, openProjects }: TodayPageProps) {
       if (action === 'resume') await api.resumeTask(task.id)
       if (action === 'finish') await api.finishTask(task.id)
       await loadTasks(date)
+      message.success(`Timer action completed: ${action}`)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -122,164 +84,58 @@ export function TodayPage({ connected, openProjects }: TodayPageProps) {
     }
   }
 
-  useEffect(() => {
-    if (connected) {
-      loadProjects()
-    }
-  }, [connected])
+  useEffect(() => { if (connected) loadProjects() }, [connected])
+  useEffect(() => { if (connected) loadTasks(date) }, [connected, date])
 
-  useEffect(() => {
-    if (connected) {
-      loadTasks(date)
-    }
-  }, [connected, date])
+  const columns = [
+    { title: 'Task', dataIndex: 'title', key: 'title' },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (value: string) => <StatusTag value={value} /> },
+    { title: 'Estimate', dataIndex: 'estimated_minutes', key: 'estimated_minutes', render: (value: number) => `${value} min` },
+    { title: 'Project', dataIndex: 'project_id', key: 'project_id', render: (value: number | null) => value ? projectNames.get(value) ?? `#${value}` : '-' },
+    { title: 'Timer', key: 'actions', render: (_: unknown, task: DailyTask) => <TimerControls task={task} runAction={runAction} /> },
+  ]
 
   return (
-    <>
-      {error && <div className="message error">{error}</div>}
-      {projectsError && <div className="message error">{projectsError}</div>}
-
-      <section className="content-grid">
-        <section className="panel">
-          <div className="panel-title">
-            <h2>Today</h2>
-            <label>
-              Date
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-              />
-            </label>
-          </div>
-
-          {loading && <p className="muted">Loading...</p>}
-          {!loading && tasks.length === 0 && <p className="muted">No tasks for this date.</p>}
-
-          <div className="task-list">
-            {tasks.map((task) => (
-              <article key={task.id} className="task-row">
-                <div>
-                  <h3>{task.title}</h3>
-                  <p>
-                    status: {task.status} | estimate: {task.estimated_minutes} min | project:{' '}
-                    {task.project_id ? projectNames.get(task.project_id) ?? `#${task.project_id}` : '-'}
-                  </p>
-                </div>
-                <div className="actions">{renderActions(task, runAction)}</div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <aside className="panel">
-          <h2>Create task</h2>
-          {projectsLoading && <p className="muted">Loading projects...</p>}
-          {!projectsLoading && !projectsError && projects.length === 0 && (
-            <div className="empty-state">
-              <p>No projects yet. Create a project first.</p>
-              <button type="button" onClick={openProjects}>
-                Go to Projects
-              </button>
-            </div>
+    <div className="page-stack">
+      {error && <Alert type="error" showIcon title={error} />}
+      <div className="today-grid">
+        <Card title="Calendar Dashboard">
+          <Calendar fullscreen={false} value={dayjs(date)} onSelect={(value) => setDate(value.format('YYYY-MM-DD'))} />
+        </Card>
+        <Card title="Create task">
+          {projects.length === 0 && !projectsLoading && (
+            <Alert type="warning" showIcon title="No projects yet. Create a project first." action={<Button onClick={openProjects}>Go to Projects</Button>} />
           )}
-          <form onSubmit={createTask} className="task-form">
-            <label>
-              project
-              <select
-                value={form.projectId}
-                disabled={!connected || projects.length === 0}
-                onChange={(event) => setForm({ ...form, projectId: event.target.value })}
-              >
-                <option value="">Select a project</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              task_date
-              <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            </label>
-            <label>
-              title
-              <input
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="Read docs"
-              />
-            </label>
-            <label>
-              estimated_minutes
-              <input
-                type="number"
-                min="1"
-                value={form.estimatedMinutes}
-                onChange={(event) => setForm({ ...form, estimatedMinutes: event.target.value })}
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={!connected || loading || projectsLoading || projects.length === 0}
-            >
-              Create
-            </button>
-          </form>
-        </aside>
-      </section>
-    </>
+          <Form form={form} layout="vertical" initialValues={{ estimatedMinutes: 25 }} onFinish={createTask}>
+            <Form.Item name="projectId" label="Project" rules={[{ required: true }]}>
+              <Select loading={projectsLoading} disabled={!connected || projects.length === 0} options={projects.map((project) => ({ value: project.id, label: project.name }))} />
+            </Form.Item>
+            <Form.Item label="Task date">
+              <DatePicker value={dayjs(date)} onChange={(value) => value && setDate(value.format('YYYY-MM-DD'))} />
+            </Form.Item>
+            <Form.Item name="title" label="Title" rules={[{ required: true, whitespace: true }]}>
+              <Input placeholder="Read docs" />
+            </Form.Item>
+            <Form.Item name="estimatedMinutes" label="Estimated minutes" rules={[{ required: true, type: 'number', min: 1 }]}>
+              <InputNumber min={1} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} disabled={!connected || projects.length === 0}>Create</Button>
+          </Form>
+        </Card>
+      </div>
+      <Card title={<Space><Typography.Text strong>Tasks for</Typography.Text><DatePicker value={dayjs(date)} onChange={(value: Dayjs | null) => value && setDate(value.format('YYYY-MM-DD'))} /></Space>}>
+        <Table rowKey="id" loading={loading} dataSource={tasks} columns={columns} pagination={false} locale={{ emptyText: 'No tasks for this date.' }} />
+      </Card>
+    </div>
   )
 }
 
-function renderActions(
-  task: DailyTask,
-  runAction: (task: DailyTask, action: 'start' | 'pause' | 'resume' | 'finish') => void,
-) {
-  if (task.status === 'planned') {
-    return (
-      <button type="button" onClick={() => runAction(task, 'start')}>
-        Start
-      </button>
-    )
-  }
-  if (task.status === 'running') {
-    return (
-      <>
-        <button type="button" onClick={() => runAction(task, 'pause')}>
-          Pause
-        </button>
-        <button type="button" onClick={() => runAction(task, 'finish')}>
-          Finish
-        </button>
-      </>
-    )
-  }
-  if (task.status === 'paused') {
-    return (
-      <>
-        <button type="button" onClick={() => runAction(task, 'resume')}>
-          Resume
-        </button>
-        <button type="button" onClick={() => runAction(task, 'finish')}>
-          Finish
-        </button>
-      </>
-    )
-  }
+function TimerControls({ task, runAction }: { task: DailyTask; runAction: (task: DailyTask, action: 'start' | 'pause' | 'resume' | 'finish') => void }) {
+  if (task.status === 'planned') return <Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>Start</Button>
+  if (task.status === 'running') return <Space><Button icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>Pause</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
+  if (task.status === 'paused') return <Space><Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>Resume</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
   return null
 }
 
-function todayString() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  const local = new Date(now.getTime() - offset * 60 * 1000)
-  return local.toISOString().slice(0, 10)
-}
-
-function errorMessage(err: unknown) {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'string') return err
-  return 'Unknown error'
-}
+function todayString() { return dayjs().format('YYYY-MM-DD') }
+function errorMessage(err: unknown) { return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error' }

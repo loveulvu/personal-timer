@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, StartupStatus } from './api'
+import { AppLayout, Page } from './components/AppLayout'
 import { ProjectsPage } from './ProjectsPage'
 import { StatsPage } from './StatsPage'
 import { SummariesPage } from './SummariesPage'
 import { TodayPage } from './TodayPage'
-
-type Page = 'today' | 'projects' | 'stats' | 'summaries'
 
 function App() {
   const [page, setPage] = useState<Page>('today')
@@ -41,68 +40,22 @@ function App() {
   }, [])
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <h1>Personal Study Timer</h1>
-          <p>{title}</p>
-        </div>
-        <button type="button" onClick={checkBackend}>
-          Refresh status
-        </button>
-      </header>
-
-      <nav className="tabs" aria-label="Main navigation">
-        <button
-          type="button"
-          className={page === 'today' ? 'active' : ''}
-          onClick={() => setPage('today')}
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          className={page === 'projects' ? 'active' : ''}
-          onClick={() => setPage('projects')}
-        >
-          Projects
-        </button>
-        <button
-          type="button"
-          className={page === 'stats' ? 'active' : ''}
-          onClick={() => setPage('stats')}
-        >
-          Stats
-        </button>
-        <button
-          type="button"
-          className={page === 'summaries' ? 'active' : ''}
-          onClick={() => setPage('summaries')}
-        >
-          Summaries
-        </button>
-      </nav>
-
-      <section className={`status ${connected ? 'ok' : 'error'}`}>
-        <span>{connected ? 'backend connected' : 'backend disconnected'}</span>
-        <span>version: {startup?.version?.version ?? '-'}</span>
-        <span>database: {startup?.config?.database ?? '-'}</span>
-        <span>llm: {startup?.config?.llm_configured ? 'configured' : 'not configured'}</span>
-      </section>
-
-      {error && <div className="message error">{error}</div>}
-      {startup?.error && connected && <div className="message warning">{startup.error}</div>}
-      {!connected && (
-        <div className="message error">Backend is not running. Please start backend-go first.</div>
-      )}
-
+    <AppLayout
+      page={page}
+      setPage={setPage}
+      startup={startup}
+      connected={connected}
+      title={title}
+      error={error}
+      refresh={checkBackend}
+    >
       {page === 'today' && (
         <TodayPage connected={connected} openProjects={() => setPage('projects')} />
       )}
       {page === 'projects' && <ProjectsPage connected={connected} />}
       {page === 'stats' && <StatsPage connected={connected} />}
       {page === 'summaries' && <SummariesPage connected={connected} />}
-    </main>
+    </AppLayout>
   )
 }
 
