@@ -3,6 +3,7 @@ import { Alert, Button, Card, Empty, Form, Input, InputNumber, List, Modal, Prog
 import { useState } from 'react'
 import { api, DailyTask, Project } from '../../api'
 import { StatusTag } from '../../components/StatusTag'
+import { errorMessage } from '../../utils/labels'
 import { TimerAction } from './DashboardPage'
 
 type TodayTasksCardProps = {
@@ -36,7 +37,7 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
       form.resetFields()
       setModalOpen(false)
       await refresh()
-      message.success('Daily task created')
+      message.success('每日任务创建成功')
     } catch (err) {
       message.error(errorMessage(err))
     }
@@ -54,14 +55,14 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
   return (
     <Card
       className="dashboard-card tasks-card"
-      title="Today's Tasks"
-      extra={<Button type="text" icon={<PlusOutlined />} onClick={openCreate} disabled={!connected}>Add task</Button>}
+      title="今日任务"
+      extra={<Button type="text" icon={<PlusOutlined />} onClick={openCreate} disabled={!connected}>添加任务</Button>}
       loading={loading && tasks.length === 0}
     >
       {projects.length === 0 && connected && (
-        <Alert type="warning" showIcon title="Create a project before adding tasks." action={<Button onClick={openProjects}>Projects</Button>} />
+        <Alert type="warning" showIcon title="暂无项目，请先创建项目" action={<Button onClick={openProjects}>前往项目</Button>} />
       )}
-      {tasks.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No tasks for this date" /> : (
+      {tasks.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当天暂无任务" /> : (
         <List
           className="task-list"
           dataSource={tasks}
@@ -70,29 +71,29 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
               <List.Item.Meta
                 avatar={<span className={`task-state-dot ${task.status}`}><CheckCircleOutlined /></span>}
                 title={<Space wrap><Typography.Text strong delete={task.status === 'completed'}>{task.title}</Typography.Text><StatusTag value={task.status} /></Space>}
-                description={`${task.project_id ? projectNames.get(task.project_id) ?? `Project #${task.project_id}` : 'Unassigned'} · ${task.estimated_minutes} min`}
+                description={`${task.project_id ? projectNames.get(task.project_id) ?? `项目 #${task.project_id}` : '未分配项目'} · ${task.estimated_minutes} 分钟`}
               />
             </List.Item>
           )}
         />
       )}
       <div className="tasks-progress">
-        <div><Typography.Text type="secondary">{completed} of {tasks.length} tasks completed</Typography.Text><Typography.Text type="secondary">{percent}%</Typography.Text></div>
+        <div><Typography.Text type="secondary">已完成 {completed} / {tasks.length} 个任务</Typography.Text><Typography.Text type="secondary">{percent}%</Typography.Text></div>
         <Progress percent={percent} showInfo={false} size="small" />
       </div>
 
-      <Modal title={`Add task · ${date}`} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
+      <Modal title={`添加任务 · ${date}`} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <Form form={form} layout="vertical" onFinish={createTask}>
-          <Form.Item name="projectId" label="Project" rules={[{ required: true }]}>
+          <Form.Item name="projectId" label="项目" rules={[{ required: true }]}>
             <Select options={projects.map((project) => ({ value: project.id, label: project.name }))} />
           </Form.Item>
-          <Form.Item name="title" label="Task title" rules={[{ required: true, whitespace: true }]}>
-            <Input placeholder="What do you want to focus on?" />
+          <Form.Item name="title" label="任务标题" rules={[{ required: true, whitespace: true }]}>
+            <Input placeholder="今天想专注完成什么？" />
           </Form.Item>
-          <Form.Item name="estimatedMinutes" label="Estimated minutes" rules={[{ required: true, type: 'number', min: 1 }]}>
+          <Form.Item name="estimatedMinutes" label="预计分钟数" rules={[{ required: true, type: 'number', min: 1 }]}>
             <InputNumber min={1} />
           </Form.Item>
-          <Button type="primary" htmlType="submit">Create task</Button>
+          <Button type="primary" htmlType="submit">创建任务</Button>
         </Form>
       </Modal>
     </Card>
@@ -100,12 +101,8 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
 }
 
 function TaskActions({ task, runAction }: { task: DailyTask; runAction: (task: DailyTask, action: TimerAction) => void }) {
-  if (task.status === 'planned') return <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>Start</Button>
-  if (task.status === 'running') return <Space size={4}><Button size="small" icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>Pause</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
-  if (task.status === 'paused') return <Space size={4}><Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>Resume</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
+  if (task.status === 'planned') return <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>开始</Button>
+  if (task.status === 'running') return <Space size={4}><Button size="small" icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>暂停</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
+  if (task.status === 'paused') return <Space size={4}><Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>继续</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
   return null
-}
-
-function errorMessage(err: unknown) {
-  return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error'
 }

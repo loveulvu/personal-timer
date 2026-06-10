@@ -8,7 +8,7 @@ type DashboardCalendarProps = {
 
 export function DashboardCalendar({ date, setDate }: DashboardCalendarProps) {
   return (
-    <Card className="dashboard-card calendar-card" title="Calendar">
+    <Card className="dashboard-card calendar-card" title="日历">
       <Calendar fullscreen={false} value={date} onSelect={setDate} />
     </Card>
   )

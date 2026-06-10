@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
 import { api, GenerateSummaryResult, Summary } from './api'
 import { StatusTag } from './components/StatusTag'
+import { errorMessage, valueLabel } from './utils/labels'
 
 type Props = { connected: boolean }
 type SummaryFilter = '' | 'daily' | 'weekly'
@@ -28,13 +29,13 @@ export function SummariesPage({ connected }: Props) {
 
   async function testLLM() {
     setLoading(true); setError('')
-    try { const result = await api.testLLM(); message.success(result.message || 'LLM connection works') }
+    try { await api.testLLM(); message.success('LLM 连接正常') }
     catch (err) { const text = errorMessage(err); setError(text); message.error(text) } finally { setLoading(false) }
   }
 
   async function generate(action: () => Promise<GenerateSummaryResult>) {
     setLoading(true); setError(''); setGenerated(null)
-    try { setGenerated(await action()); await loadSummaries(filter); message.success('Summary generated successfully') }
+    try { setGenerated(await action()); await loadSummaries(filter); message.success('总结生成成功') }
     catch (err) { const text = errorMessage(err); setError(text); message.error(text) } finally { setLoading(false) }
   }
 
@@ -45,10 +46,10 @@ export function SummariesPage({ connected }: Props) {
 
   function confirmDelete(summary: Summary) {
     Modal.confirm({
-      title: `Delete ${summary.summary_type} summary #${summary.id}?`,
-      okText: 'Delete', okButtonProps: { danger: true },
+      title: `确认删除${valueLabel(summary.summary_type)}总结 #${summary.id} 吗？`,
+      okText: '删除', cancelText: '取消', okButtonProps: { danger: true },
       onOk: async () => {
-        try { await api.deleteSummary(summary.id); if (detail?.id === summary.id) setDetail(null); await loadSummaries(filter); message.success('Summary deleted') }
+        try { await api.deleteSummary(summary.id); if (detail?.id === summary.id) setDetail(null); await loadSummaries(filter); message.success('总结删除成功') }
         catch (err) { const text = errorMessage(err); setError(text); message.error(text) }
       },
     })
@@ -57,40 +58,40 @@ export function SummariesPage({ connected }: Props) {
   useEffect(() => { if (connected) loadSummaries(filter) }, [connected, filter])
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: 'Type', dataIndex: 'summary_type', key: 'summary_type', render: (value: string) => <StatusTag value={value} /> },
-    { title: 'Range', key: 'range', render: (_: unknown, summary: Summary) => `${summary.start_date} to ${summary.end_date}` },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: formatDate },
-    { title: 'Content preview', dataIndex: 'content', key: 'content', ellipsis: true, render: preview },
-    { title: 'Actions', key: 'actions', render: (_: unknown, summary: Summary) => <Space><Button icon={<EyeOutlined />} onClick={() => viewSummary(summary.id)}>View</Button><Button danger icon={<DeleteOutlined />} onClick={() => confirmDelete(summary)}>Delete</Button></Space> },
+    { title: '编号', dataIndex: 'id', key: 'id', width: 70 },
+    { title: '总结类型', dataIndex: 'summary_type', key: 'summary_type', render: (value: string) => <StatusTag value={value} /> },
+    { title: '日期范围', key: 'range', render: (_: unknown, summary: Summary) => `${summary.start_date} 至 ${summary.end_date}` },
+    { title: '创建时间', dataIndex: 'created_at', key: 'created_at', render: formatDate },
+    { title: '内容预览', dataIndex: 'content', key: 'content', ellipsis: true, render: preview },
+    { title: '操作', key: 'actions', render: (_: unknown, summary: Summary) => <Space><Button icon={<EyeOutlined />} onClick={() => viewSummary(summary.id)}>查看</Button><Button danger icon={<DeleteOutlined />} onClick={() => confirmDelete(summary)}>删除</Button></Space> },
   ]
 
   return <div className="page-stack">
-    <header className="section-header"><div><Typography.Title level={2}>Summaries</Typography.Title><Typography.Text type="secondary">Generate and review daily or weekly study reflections.</Typography.Text></div></header>
+    <header className="section-header"><div><Typography.Title level={2}>总结</Typography.Title><Typography.Text type="secondary">生成并查看每日或每周学习总结。</Typography.Text></div></header>
     {error && <Alert type="error" showIcon title={error} />}
     <div className="summary-tools">
-      <Card title="LLM Test"><Typography.Paragraph type="secondary">Tests the configured LLM connection without exposing the API key.</Typography.Paragraph><Button icon={<ExperimentOutlined />} onClick={testLLM} loading={loading} disabled={!connected}>Test LLM</Button></Card>
-      <Card title="Generate Daily Summary"><Space orientation="vertical"><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={() => generate(() => api.generateDailySummary(dailyDate.format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>Generate Daily Summary</Button></Space></Card>
-      <Card title="Generate Weekly Summary"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>Generate Weekly Summary</Button></Space></Card>
+      <Card title="LLM 测试"><Typography.Paragraph type="secondary">测试已配置的 LLM 连接，不会显示 API 密钥。</Typography.Paragraph><Button icon={<ExperimentOutlined />} onClick={testLLM} loading={loading} disabled={!connected}>测试 LLM</Button></Card>
+      <Card title="生成每日总结"><Space orientation="vertical"><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={() => generate(() => api.generateDailySummary(dailyDate.format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>生成每日总结</Button></Space></Card>
+      <Card title="生成每周总结"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>生成每周总结</Button></Space></Card>
     </div>
 
-    {generated && <Card title={`Generated Summary #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph></Card>}
+    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph></Card>}
 
-    <Card title="Summaries" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: 'all' }, { value: 'daily', label: 'daily' }, { value: 'weekly', label: 'weekly' }]} />}>
+    <Card title="总结列表" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: '全部' }, { value: 'daily', label: '每日' }, { value: 'weekly', label: '每周' }]} />}>
       <Table rowKey="id" loading={loading} dataSource={summaries} columns={columns} pagination={{ pageSize: 8 }} />
     </Card>
 
-    <Modal title={`Summary Detail #${detail?.id ?? ''}`} open={detail !== null} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>Close</Button>} width={760}>
+    <Modal title={`总结详情 #${detail?.id ?? ''}`} open={detail !== null} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>关闭</Button>} width={760}>
       {detail && <>
         <Descriptions size="small" column={2} items={[
-          { key: 'type', label: 'Type', children: <StatusTag value={detail.summary_type} /> },
-          { key: 'created', label: 'Created', children: formatDate(detail.created_at) },
-          { key: 'start', label: 'Start date', children: detail.start_date },
-          { key: 'end', label: 'End date', children: detail.end_date },
+          { key: 'type', label: '总结类型', children: <StatusTag value={detail.summary_type} /> },
+          { key: 'created', label: '创建时间', children: formatDate(detail.created_at) },
+          { key: 'start', label: '开始日期', children: detail.start_date },
+          { key: 'end', label: '结束日期', children: detail.end_date },
         ]} />
-        <Typography.Title level={5}>Content</Typography.Title>
+        <Typography.Title level={5}>内容</Typography.Title>
         <pre className="content-block">{detail.content}</pre>
-        {detail.source_data !== undefined && <><Typography.Title level={5}>Source Data</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
+        {detail.source_data !== undefined && <><Typography.Title level={5}>源数据</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
       </>}
     </Modal>
   </div>
@@ -98,5 +99,4 @@ export function SummariesPage({ connected }: Props) {
 
 function preview(content: string) { return content.length > 140 ? `${content.slice(0, 140)}...` : content }
 function formatSourceData(sourceData: unknown) { if (typeof sourceData === 'string') return sourceData; try { return JSON.stringify(sourceData, null, 2) } catch { return String(sourceData) } }
-function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString() }
-function errorMessage(err: unknown) { return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error' }
+function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN') }

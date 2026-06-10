@@ -9,6 +9,7 @@ import {
 import { Alert, Button, Layout, Menu, Typography } from 'antd'
 import { ReactNode } from 'react'
 import { StartupStatus } from '../api'
+import { errorMessage } from '../utils/labels'
 import { StatusBar } from './StatusBar'
 
 export type Page = 'dashboard' | 'projects' | 'stats' | 'summaries'
@@ -42,8 +43,8 @@ export function AppLayout({
         <div className="app-brand">
           <span className="app-brand-icon"><FieldTimeOutlined /></span>
           <div>
-            <Typography.Text strong>Personal Timer</Typography.Text>
-            <Typography.Text type="secondary">Study dashboard</Typography.Text>
+            <Typography.Text strong>个人计时器</Typography.Text>
+            <Typography.Text type="secondary">学习仪表盘</Typography.Text>
           </div>
         </div>
         <Menu
@@ -52,14 +53,14 @@ export function AppLayout({
           selectedKeys={[page]}
           onClick={({ key }) => setPage(key as Page)}
           items={[
-            { key: 'dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-            { key: 'projects', icon: <FolderOutlined />, label: 'Projects' },
-            { key: 'stats', icon: <BarChartOutlined />, label: 'Stats' },
-            { key: 'summaries', icon: <FileTextOutlined />, label: 'Summaries' },
+            { key: 'dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
+            { key: 'projects', icon: <FolderOutlined />, label: '项目' },
+            { key: 'stats', icon: <BarChartOutlined />, label: '统计' },
+            { key: 'summaries', icon: <FileTextOutlined />, label: '总结' },
           ]}
         />
         <div className="sidebar-footer">
-          <Button block icon={<ReloadOutlined />} onClick={refresh}>Refresh status</Button>
+          <Button block icon={<ReloadOutlined />} onClick={refresh}>刷新状态</Button>
           <StatusBar startup={startup} connected={connected} darkMode={darkMode} setDarkMode={setDarkMode} />
         </div>
       </Layout.Sider>
@@ -68,14 +69,14 @@ export function AppLayout({
         <Layout.Content className="app-content">
           {error && <Alert className="page-alert" type="error" showIcon title={error} />}
           {startup?.error && connected && (
-            <Alert className="page-alert" type="warning" showIcon title={startup.error} />
+            <Alert className="page-alert" type="warning" showIcon title={errorMessage(startup.error)} />
           )}
           {!connected && (
             <Alert
               className="page-alert"
               type="error"
               showIcon
-              title="Backend is not running. Please start backend-go first."
+              title="后端服务未启动，请先启动 backend-go"
             />
           )}
           {children}

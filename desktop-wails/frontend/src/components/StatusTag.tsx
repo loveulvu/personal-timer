@@ -1,4 +1,5 @@
 import { Tag } from 'antd'
+import { valueLabel } from '../utils/labels'
 
 const colors: Record<string, string> = {
   planned: 'default',
@@ -11,5 +12,5 @@ const colors: Record<string, string> = {
 }
 
 export function StatusTag({ value }: { value: string }) {
-  return <Tag color={colors[value] ?? 'default'}>{value}</Tag>
+  return <Tag color={colors[value] ?? 'default'}>{valueLabel(value)}</Tag>
 }

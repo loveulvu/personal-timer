@@ -1,4 +1,5 @@
 import { ConfigProvider, theme } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
 import { useEffect, useState } from 'react'
 import { api, StartupStatus } from './api'
 import { AppLayout, Page } from './components/AppLayout'
@@ -6,6 +7,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage'
 import { ProjectsPage } from './ProjectsPage'
 import { StatsPage } from './StatsPage'
 import { SummariesPage } from './SummariesPage'
+import { errorMessage } from './utils/labels'
 
 function App() {
   const [page, setPage] = useState<Page>('dashboard')
@@ -21,12 +23,12 @@ function App() {
       const result = await api.getStartupStatus()
       setStartup(result)
       if (!result.connected && result.error) {
-        setError(result.error)
+        setError(errorMessage(result.error))
       }
     } catch (err) {
       setStartup({
         connected: false,
-        error: 'Backend is not running. Please start backend-go first.',
+        error: '后端服务未启动，请先启动 backend-go',
       })
       setError(errorMessage(err))
     }
@@ -43,6 +45,7 @@ function App() {
 
   return (
     <ConfigProvider
+      locale={zhCN}
       theme={{
         algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
@@ -71,12 +74,6 @@ function App() {
       </AppLayout>
     </ConfigProvider>
   )
-}
-
-function errorMessage(err: unknown) {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'string') return err
-  return 'Unknown error'
 }
 
 export default App

@@ -10,12 +10,12 @@ type DailyStatsCardProps = {
 
 export function DailyStatsCard({ stats, taskCount, loading }: DailyStatsCardProps) {
   return (
-    <Card className="dashboard-card daily-stats-card" title="Daily Stats" loading={loading && !stats}>
+    <Card className="dashboard-card daily-stats-card" title="今日统计" loading={loading && !stats}>
       <div className="daily-stat-grid">
-        <Statistic title="Total Minutes" value={stats?.total_minutes ?? 0} prefix={<ClockCircleOutlined />} />
-        <Statistic title="Completed" value={stats?.completed_count ?? 0} prefix={<CheckCircleOutlined />} />
-        <Statistic title="Unfinished" value={stats?.unfinished_count ?? 0} prefix={<WarningOutlined />} />
-        <Statistic title="Task Count" value={taskCount} prefix={<UnorderedListOutlined />} />
+        <Statistic title="总分钟数" value={stats?.total_minutes ?? 0} prefix={<ClockCircleOutlined />} />
+        <Statistic title="已完成任务" value={stats?.completed_count ?? 0} prefix={<CheckCircleOutlined />} />
+        <Statistic title="未完成任务" value={stats?.unfinished_count ?? 0} prefix={<WarningOutlined />} />
+        <Statistic title="任务数" value={taskCount} prefix={<UnorderedListOutlined />} />
       </div>
     </Card>
   )

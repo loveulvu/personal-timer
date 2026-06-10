@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import { useState } from 'react'
 import { api, DailyStats, WeeklyStats } from './api'
 import { StatusTag } from './components/StatusTag'
+import { errorMessage } from './utils/labels'
 
 type Props = { connected: boolean }
 
@@ -32,43 +33,43 @@ export function StatsPage({ connected }: Props) {
 
   return (
     <div className="page-stack">
-      <header className="section-header"><div><Typography.Title level={2}>Stats</Typography.Title><Typography.Text type="secondary">Review daily detail and compare a selected weekly range.</Typography.Text></div></header>
-      <Card title="Daily Stats" extra={<Space><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={queryDaily} loading={dailyLoading} disabled={!connected}>Query</Button></Space>}>
+      <header className="section-header"><div><Typography.Title level={2}>统计</Typography.Title><Typography.Text type="secondary">查看每日明细与指定日期范围的每周统计。</Typography.Text></div></header>
+      <Card title="每日统计" extra={<Space><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={queryDaily} loading={dailyLoading} disabled={!connected}>查询</Button></Space>}>
         {dailyError && <Alert className="card-alert" type="error" showIcon title={dailyError} />}
         {daily && <>
           <StatCards totalMinutes={daily.total_minutes} completed={daily.completed_count} unfinished={daily.unfinished_count} />
-          <Typography.Title level={5}>Tasks</Typography.Title>
+          <Typography.Title level={5}>任务明细</Typography.Title>
           <Table
             rowKey="task_id"
             pagination={false}
             dataSource={daily.tasks}
             columns={[
-              { title: 'Title', dataIndex: 'title', key: 'title' },
-              { title: 'Status', dataIndex: 'status', key: 'status', render: (value: string) => <StatusTag value={value} /> },
-              { title: 'Estimated minutes', dataIndex: 'estimated_minutes', key: 'estimated_minutes' },
-              { title: 'Actual minutes', dataIndex: 'actual_minutes', key: 'actual_minutes' },
+              { title: '任务标题', dataIndex: 'title', key: 'title' },
+              { title: '状态', dataIndex: 'status', key: 'status', render: (value: string) => <StatusTag value={value} /> },
+              { title: '预计分钟数', dataIndex: 'estimated_minutes', key: 'estimated_minutes' },
+              { title: '实际分钟数', dataIndex: 'actual_minutes', key: 'actual_minutes' },
             ]}
           />
         </>}
       </Card>
 
-      <Card title="Weekly Stats" extra={<Space><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={queryWeekly} loading={weeklyLoading} disabled={!connected}>Query</Button></Space>}>
+      <Card title="每周统计" extra={<Space><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={queryWeekly} loading={weeklyLoading} disabled={!connected}>查询</Button></Space>}>
         {weeklyError && <Alert className="card-alert" type="error" showIcon title={weeklyError} />}
         {weekly && <>
           <StatCards totalMinutes={weekly.total_minutes} completed={weekly.completed_count} unfinished={weekly.unfinished_count} />
-          <Typography.Title level={5}>Days</Typography.Title>
+          <Typography.Title level={5}>日期列表</Typography.Title>
           <Table rowKey="date" pagination={false} dataSource={weekly.days} columns={[
-            { title: 'Date', dataIndex: 'date', key: 'date' },
-            { title: 'Total minutes', dataIndex: 'total_minutes', key: 'total_minutes' },
-            { title: 'Completed', dataIndex: 'completed_count', key: 'completed_count' },
-            { title: 'Unfinished', dataIndex: 'unfinished_count', key: 'unfinished_count' },
+            { title: '日期', dataIndex: 'date', key: 'date' },
+            { title: '总分钟数', dataIndex: 'total_minutes', key: 'total_minutes' },
+            { title: '完成数量', dataIndex: 'completed_count', key: 'completed_count' },
+            { title: '未完成数量', dataIndex: 'unfinished_count', key: 'unfinished_count' },
           ]} />
-          <Typography.Title level={5}>Projects</Typography.Title>
+          <Typography.Title level={5}>项目汇总</Typography.Title>
           <Table rowKey="project_id" pagination={false} dataSource={weekly.projects} columns={[
-            { title: 'Project', dataIndex: 'project_name', key: 'project_name' },
-            { title: 'Task count', dataIndex: 'task_count', key: 'task_count' },
-            { title: 'Completed', dataIndex: 'completed_count', key: 'completed_count' },
-            { title: 'Total minutes', dataIndex: 'total_minutes', key: 'total_minutes' },
+            { title: '项目', dataIndex: 'project_name', key: 'project_name' },
+            { title: '任务数', dataIndex: 'task_count', key: 'task_count' },
+            { title: '完成数量', dataIndex: 'completed_count', key: 'completed_count' },
+            { title: '总分钟数', dataIndex: 'total_minutes', key: 'total_minutes' },
           ]} />
         </>}
       </Card>
@@ -78,10 +79,8 @@ export function StatsPage({ connected }: Props) {
 
 function StatCards({ totalMinutes, completed, unfinished }: { totalMinutes: number; completed: number; unfinished: number }) {
   return <Row gutter={[16, 16]} className="stat-row">
-    <Col xs={24} md={8}><Card size="small"><Statistic title="Total minutes" value={totalMinutes} prefix={<ClockCircleOutlined />} /></Card></Col>
-    <Col xs={24} md={8}><Card size="small"><Statistic title="Completed" value={completed} prefix={<CheckCircleOutlined />} /></Card></Col>
-    <Col xs={24} md={8}><Card size="small"><Statistic title="Unfinished" value={unfinished} prefix={<BarChartOutlined />} /></Card></Col>
+    <Col xs={24} md={8}><Card size="small"><Statistic title="总分钟数" value={totalMinutes} prefix={<ClockCircleOutlined />} /></Card></Col>
+    <Col xs={24} md={8}><Card size="small"><Statistic title="完成数量" value={completed} prefix={<CheckCircleOutlined />} /></Card></Col>
+    <Col xs={24} md={8}><Card size="small"><Statistic title="未完成数量" value={unfinished} prefix={<BarChartOutlined />} /></Card></Col>
   </Row>
 }
-
-function errorMessage(err: unknown) { return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error' }

@@ -4,6 +4,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { api, DailyTask, Project } from './api'
 import { StatusTag } from './components/StatusTag'
+import { errorMessage, timerActionLabel } from './utils/labels'
 
 type Props = { connected: boolean; openProjects: () => void }
 type TaskForm = { projectId: number; title: string; estimatedMinutes: number }
@@ -47,7 +48,7 @@ export function TodayPage({ connected, openProjects }: Props) {
   }
 
   async function createTask(values: TaskForm) {
-    if (projects.length === 0) return setError('No projects yet. Create a project first.')
+    if (projects.length === 0) return setError('暂无项目，请先创建项目')
     setLoading(true)
     setError('')
     try {
@@ -59,7 +60,7 @@ export function TodayPage({ connected, openProjects }: Props) {
       })
       form.setFieldsValue({ title: '', estimatedMinutes: 25 })
       await loadTasks(date)
-      message.success('Daily task created')
+      message.success('每日任务创建成功')
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -76,7 +77,7 @@ export function TodayPage({ connected, openProjects }: Props) {
       if (action === 'resume') await api.resumeTask(task.id)
       if (action === 'finish') await api.finishTask(task.id)
       await loadTasks(date)
-      message.success(`Timer action completed: ${action}`)
+      message.success(`${timerActionLabel(action)}操作成功`)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -88,54 +89,53 @@ export function TodayPage({ connected, openProjects }: Props) {
   useEffect(() => { if (connected) loadTasks(date) }, [connected, date])
 
   const columns = [
-    { title: 'Task', dataIndex: 'title', key: 'title' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (value: string) => <StatusTag value={value} /> },
-    { title: 'Estimate', dataIndex: 'estimated_minutes', key: 'estimated_minutes', render: (value: number) => `${value} min` },
-    { title: 'Project', dataIndex: 'project_id', key: 'project_id', render: (value: number | null) => value ? projectNames.get(value) ?? `#${value}` : '-' },
-    { title: 'Timer', key: 'actions', render: (_: unknown, task: DailyTask) => <TimerControls task={task} runAction={runAction} /> },
+    { title: '任务标题', dataIndex: 'title', key: 'title' },
+    { title: '状态', dataIndex: 'status', key: 'status', render: (value: string) => <StatusTag value={value} /> },
+    { title: '预计分钟数', dataIndex: 'estimated_minutes', key: 'estimated_minutes', render: (value: number) => `${value} 分钟` },
+    { title: '项目', dataIndex: 'project_id', key: 'project_id', render: (value: number | null) => value ? projectNames.get(value) ?? `#${value}` : '-' },
+    { title: '计时操作', key: 'actions', render: (_: unknown, task: DailyTask) => <TimerControls task={task} runAction={runAction} /> },
   ]
 
   return (
     <div className="page-stack">
       {error && <Alert type="error" showIcon title={error} />}
       <div className="today-grid">
-        <Card title="Calendar Dashboard">
+        <Card title="日历">
           <Calendar fullscreen={false} value={dayjs(date)} onSelect={(value) => setDate(value.format('YYYY-MM-DD'))} />
         </Card>
-        <Card title="Create task">
+        <Card title="创建每日任务">
           {projects.length === 0 && !projectsLoading && (
-            <Alert type="warning" showIcon title="No projects yet. Create a project first." action={<Button onClick={openProjects}>Go to Projects</Button>} />
+            <Alert type="warning" showIcon title="暂无项目，请先创建项目" action={<Button onClick={openProjects}>前往项目</Button>} />
           )}
           <Form form={form} layout="vertical" initialValues={{ estimatedMinutes: 25 }} onFinish={createTask}>
-            <Form.Item name="projectId" label="Project" rules={[{ required: true }]}>
+            <Form.Item name="projectId" label="项目" rules={[{ required: true }]}>
               <Select loading={projectsLoading} disabled={!connected || projects.length === 0} options={projects.map((project) => ({ value: project.id, label: project.name }))} />
             </Form.Item>
-            <Form.Item label="Task date">
+            <Form.Item label="任务日期">
               <DatePicker value={dayjs(date)} onChange={(value) => value && setDate(value.format('YYYY-MM-DD'))} />
             </Form.Item>
-            <Form.Item name="title" label="Title" rules={[{ required: true, whitespace: true }]}>
-              <Input placeholder="Read docs" />
+            <Form.Item name="title" label="任务标题" rules={[{ required: true, whitespace: true }]}>
+              <Input placeholder="例如：阅读文档" />
             </Form.Item>
-            <Form.Item name="estimatedMinutes" label="Estimated minutes" rules={[{ required: true, type: 'number', min: 1 }]}>
+            <Form.Item name="estimatedMinutes" label="预计分钟数" rules={[{ required: true, type: 'number', min: 1 }]}>
               <InputNumber min={1} />
             </Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} disabled={!connected || projects.length === 0}>Create</Button>
+            <Button type="primary" htmlType="submit" loading={loading} disabled={!connected || projects.length === 0}>创建</Button>
           </Form>
         </Card>
       </div>
-      <Card title={<Space><Typography.Text strong>Tasks for</Typography.Text><DatePicker value={dayjs(date)} onChange={(value: Dayjs | null) => value && setDate(value.format('YYYY-MM-DD'))} /></Space>}>
-        <Table rowKey="id" loading={loading} dataSource={tasks} columns={columns} pagination={false} locale={{ emptyText: 'No tasks for this date.' }} />
+      <Card title={<Space><Typography.Text strong>每日任务</Typography.Text><DatePicker value={dayjs(date)} onChange={(value: Dayjs | null) => value && setDate(value.format('YYYY-MM-DD'))} /></Space>}>
+        <Table rowKey="id" loading={loading} dataSource={tasks} columns={columns} pagination={false} locale={{ emptyText: '当天暂无任务' }} />
       </Card>
     </div>
   )
 }
 
 function TimerControls({ task, runAction }: { task: DailyTask; runAction: (task: DailyTask, action: 'start' | 'pause' | 'resume' | 'finish') => void }) {
-  if (task.status === 'planned') return <Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>Start</Button>
-  if (task.status === 'running') return <Space><Button icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>Pause</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
-  if (task.status === 'paused') return <Space><Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>Resume</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button></Space>
+  if (task.status === 'planned') return <Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>开始</Button>
+  if (task.status === 'running') return <Space><Button icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>暂停</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
+  if (task.status === 'paused') return <Space><Button icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>继续</Button><Button icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
   return null
 }
 
 function todayString() { return dayjs().format('YYYY-MM-DD') }
-function errorMessage(err: unknown) { return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error' }

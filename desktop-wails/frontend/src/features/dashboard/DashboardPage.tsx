@@ -3,6 +3,7 @@ import { Alert, DatePicker, Typography, message } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { api, DailyStats, DailyTask, Project, WeeklyStats } from '../../api'
+import { errorMessage, timerActionLabel } from '../../utils/labels'
 import { DailyStatsCard } from './DailyStatsCard'
 import { DashboardCalendar } from './DashboardCalendar'
 import { FocusTimerCard } from './FocusTimerCard'
@@ -44,8 +45,8 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
     if (results[2].status === 'fulfilled') setWeeklyStats(results[2].value)
     const failures = results.flatMap((result, index) => {
       if (result.status === 'fulfilled') return []
-      const labels = ['Daily tasks', 'Daily stats', 'Weekly stats']
-      return [`${labels[index]} failed to load: ${errorMessage(result.reason)}`]
+      const labels = ['每日任务', '每日统计', '每周统计']
+      return [`${labels[index]}加载失败：${errorMessage(result.reason)}`]
     })
     if (failures.length > 0) setError(failures.join(' '))
     setLoading(false)
@@ -69,7 +70,7 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
       if (action === 'resume') await api.resumeTask(task.id)
       if (action === 'finish') await api.finishTask(task.id)
       await loadDashboard()
-      message.success(`${action[0].toUpperCase()}${action.slice(1)} completed`)
+      message.success(`${timerActionLabel(action)}操作成功`)
     } catch (err) {
       const text = errorMessage(err)
       setError(text)
@@ -91,8 +92,8 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
     <div className="dashboard-page">
       <header className="dashboard-header">
         <div>
-          <Typography.Title level={2}>Personal Timer Dashboard</Typography.Title>
-          <Typography.Text type="secondary">Stay focused and track your progress.</Typography.Text>
+          <Typography.Title level={2}>个人计时器仪表盘</Typography.Title>
+          <Typography.Text type="secondary">保持专注，记录今天的进度</Typography.Text>
         </div>
         <DatePicker
           value={date}
@@ -132,8 +133,4 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
       <WeeklySummaryCard stats={weeklyStats} loading={loading} />
     </div>
   )
-}
-
-function errorMessage(err: unknown) {
-  return err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error'
 }

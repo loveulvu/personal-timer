@@ -16,7 +16,7 @@ export function FocusTimerCard({ task, projectName, dailyStats, loading, runActi
   const percent = task?.estimated_minutes ? Math.min(100, Math.round((actualMinutes / task.estimated_minutes) * 100)) : 0
 
   return (
-    <Card className="dashboard-card focus-card" title="Focus Timer" loading={loading && !dailyStats}>
+    <Card className="dashboard-card focus-card" title="当前计时" loading={loading && !dailyStats}>
       {task ? (
         <>
           <Progress
@@ -26,26 +26,26 @@ export function FocusTimerCard({ task, projectName, dailyStats, loading, runActi
             strokeWidth={7}
             format={() => (
               <div className="focus-progress-label">
-                <Typography.Text type="secondary">Focused</Typography.Text>
-                <Typography.Title level={2}>{actualMinutes} min</Typography.Title>
-                <Typography.Text type="secondary">of {task.estimated_minutes} min</Typography.Text>
+                <Typography.Text type="secondary">已专注</Typography.Text>
+                <Typography.Title level={2}>{actualMinutes} 分钟</Typography.Title>
+                <Typography.Text type="secondary">预计 {task.estimated_minutes} 分钟</Typography.Text>
               </div>
             )}
           />
           <div className="focus-task">
             <Typography.Title level={4}>{task.title}</Typography.Title>
-            <Typography.Text type="secondary">{projectName ?? (task.project_id ? `Project #${task.project_id}` : 'Unassigned')}</Typography.Text>
+            <Typography.Text type="secondary">{projectName ?? (task.project_id ? `项目 #${task.project_id}` : '未分配项目')}</Typography.Text>
           </div>
           <Space>
-            <Button icon={<PauseOutlined />} onClick={() => runAction(task, 'pause')}>Pause</Button>
-            <Button type="primary" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>Finish</Button>
+            <Button icon={<PauseOutlined />} onClick={() => runAction(task, 'pause')}>暂停</Button>
+            <Button type="primary" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button>
           </Space>
         </>
       ) : (
         <div className="focus-empty">
-          <Progress type="circle" percent={0} size={210} format={() => <Typography.Text type="secondary">No active task</Typography.Text>} />
-          <Typography.Title level={4}>No active task</Typography.Title>
-          <Typography.Text type="secondary">Start a task from Today's Tasks.</Typography.Text>
+          <Progress type="circle" percent={0} size={210} format={() => <Typography.Text type="secondary">暂无进行中任务</Typography.Text>} />
+          <Typography.Title level={4}>当前没有进行中的任务</Typography.Title>
+          <Typography.Text type="secondary">请从今日任务中开始一个任务</Typography.Text>
         </div>
       )}
     </Card>
