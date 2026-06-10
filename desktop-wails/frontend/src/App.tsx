@@ -1,22 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { ConfigProvider, theme } from 'antd'
+import { useEffect, useState } from 'react'
 import { api, StartupStatus } from './api'
 import { AppLayout, Page } from './components/AppLayout'
+import { DashboardPage } from './features/dashboard/DashboardPage'
 import { ProjectsPage } from './ProjectsPage'
 import { StatsPage } from './StatsPage'
 import { SummariesPage } from './SummariesPage'
-import { TodayPage } from './TodayPage'
 
 function App() {
-  const [page, setPage] = useState<Page>('today')
+  const [page, setPage] = useState<Page>('dashboard')
   const [startup, setStartup] = useState<StartupStatus | null>(null)
   const [error, setError] = useState('')
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('personal-timer-theme') === 'dark')
 
   const connected = startup?.connected === true
-  const title = useMemo(() => {
-    if (!startup) return 'Checking backend...'
-    if (!startup.connected) return 'Backend disconnected'
-    return `Backend connected ${startup.version?.version ?? ''}`
-  }, [startup])
 
   async function checkBackend() {
     setError('')
@@ -39,23 +36,40 @@ function App() {
     checkBackend()
   }, [])
 
+  function changeTheme(enabled: boolean) {
+    setDarkMode(enabled)
+    localStorage.setItem('personal-timer-theme', enabled ? 'dark' : 'light')
+  }
+
   return (
-    <AppLayout
-      page={page}
-      setPage={setPage}
-      startup={startup}
-      connected={connected}
-      title={title}
-      error={error}
-      refresh={checkBackend}
+    <ConfigProvider
+      theme={{
+        algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#1677ff',
+          borderRadius: 12,
+          fontFamily: '"Segoe UI", Inter, system-ui, sans-serif',
+        },
+      }}
     >
-      {page === 'today' && (
-        <TodayPage connected={connected} openProjects={() => setPage('projects')} />
-      )}
-      {page === 'projects' && <ProjectsPage connected={connected} />}
-      {page === 'stats' && <StatsPage connected={connected} />}
-      {page === 'summaries' && <SummariesPage connected={connected} />}
-    </AppLayout>
+      <AppLayout
+        page={page}
+        setPage={setPage}
+        startup={startup}
+        connected={connected}
+        error={error}
+        refresh={checkBackend}
+        darkMode={darkMode}
+        setDarkMode={changeTheme}
+      >
+        {page === 'dashboard' && (
+          <DashboardPage connected={connected} openProjects={() => setPage('projects')} />
+        )}
+        {page === 'projects' && <ProjectsPage connected={connected} />}
+        {page === 'stats' && <StatsPage connected={connected} />}
+        {page === 'summaries' && <SummariesPage connected={connected} />}
+      </AppLayout>
+    </ConfigProvider>
   )
 }
 

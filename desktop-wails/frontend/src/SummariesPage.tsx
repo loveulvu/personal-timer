@@ -66,6 +66,7 @@ export function SummariesPage({ connected }: Props) {
   ]
 
   return <div className="page-stack">
+    <header className="section-header"><div><Typography.Title level={2}>Summaries</Typography.Title><Typography.Text type="secondary">Generate and review daily or weekly study reflections.</Typography.Text></div></header>
     {error && <Alert type="error" showIcon title={error} />}
     <div className="summary-tools">
       <Card title="LLM Test"><Typography.Paragraph type="secondary">Tests the configured LLM connection without exposing the API key.</Typography.Paragraph><Button icon={<ExperimentOutlined />} onClick={testLLM} loading={loading} disabled={!connected}>Test LLM</Button></Card>

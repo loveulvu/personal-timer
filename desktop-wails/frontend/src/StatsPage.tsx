@@ -32,6 +32,7 @@ export function StatsPage({ connected }: Props) {
 
   return (
     <div className="page-stack">
+      <header className="section-header"><div><Typography.Title level={2}>Stats</Typography.Title><Typography.Text type="secondary">Review daily detail and compare a selected weekly range.</Typography.Text></div></header>
       <Card title="Daily Stats" extra={<Space><DatePicker value={dailyDate} onChange={(value) => value && setDailyDate(value)} /><Button type="primary" onClick={queryDaily} loading={dailyLoading} disabled={!connected}>Query</Button></Space>}>
         {dailyError && <Alert className="card-alert" type="error" showIcon title={dailyError} />}
         {daily && <>

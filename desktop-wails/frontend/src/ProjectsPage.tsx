@@ -65,15 +65,18 @@ export function ProjectsPage({ connected }: Props) {
   ]
 
   return (
-    <div className="projects-grid">
-      <Card title="Create project">
-        {error && <Alert className="card-alert" type="error" showIcon title={error} />}
-        <ProjectForm form={createForm} onFinish={createProject} loading={loading} submitLabel="Create" />
-      </Card>
-      <Card title="Projects" extra={<Button icon={<ReloadOutlined />} onClick={loadProjects} loading={loading}>Refresh</Button>}>
-        <Alert className="card-alert" type="info" showIcon title="Deleting a project keeps existing tasks but removes their project link." />
-        <Table rowKey="id" loading={loading} dataSource={projects} columns={columns} pagination={false} />
-      </Card>
+    <div className="page-stack">
+      <header className="section-header"><div><Typography.Title level={2}>Projects</Typography.Title><Typography.Text type="secondary">Organize the work behind your daily tasks.</Typography.Text></div></header>
+      <div className="projects-grid">
+        <Card title="Create project">
+          {error && <Alert className="card-alert" type="error" showIcon title={error} />}
+          <ProjectForm form={createForm} onFinish={createProject} loading={loading} submitLabel="Create" />
+        </Card>
+        <Card title="Projects" extra={<Button icon={<ReloadOutlined />} onClick={loadProjects} loading={loading}>Refresh</Button>}>
+          <Alert className="card-alert" type="info" showIcon title="Deleting a project keeps existing tasks but removes their project link." />
+          <Table rowKey="id" loading={loading} dataSource={projects} columns={columns} pagination={false} />
+        </Card>
+      </div>
       <Modal title={`Edit project #${editing?.id ?? ''}`} open={editing !== null} onOk={updateProject} confirmLoading={loading} onCancel={() => setEditing(null)}>
         <ProjectForm form={editForm} loading={loading} hideSubmit />
       </Modal>

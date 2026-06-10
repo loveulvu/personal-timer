@@ -1,0 +1,37 @@
+import { ApiOutlined, DatabaseOutlined, MoonOutlined, RobotOutlined } from '@ant-design/icons'
+import { Switch, Tag, Typography } from 'antd'
+import { ReactNode } from 'react'
+import { StartupStatus } from '../api'
+
+type StatusBarProps = {
+  startup: StartupStatus | null
+  connected: boolean
+  darkMode: boolean
+  setDarkMode: (enabled: boolean) => void
+}
+
+export function StatusBar({ startup, connected, darkMode, setDarkMode }: StatusBarProps) {
+  const databaseOK = startup?.config?.database === 'ok'
+  const llmConfigured = startup?.config?.llm_configured === true
+
+  return (
+    <div className="status-bar">
+      <StatusRow icon={<ApiOutlined />} label="Backend" value={connected ? 'Online' : 'Offline'} ok={connected} />
+      <StatusRow icon={<DatabaseOutlined />} label="Database" value={databaseOK ? 'Connected' : startup?.config?.database ?? 'Unknown'} ok={databaseOK} />
+      <StatusRow icon={<RobotOutlined />} label="LLM" value={llmConfigured ? 'Configured' : 'Not configured'} ok={llmConfigured} />
+      <div className="status-row">
+        <span className="status-label"><MoonOutlined /><Typography.Text>Dark Mode</Typography.Text></span>
+        <Switch size="small" checked={darkMode} onChange={setDarkMode} aria-label="Toggle dark mode" />
+      </div>
+    </div>
+  )
+}
+
+function StatusRow({ icon, label, value, ok }: { icon: ReactNode; label: string; value: string; ok: boolean }) {
+  return (
+    <div className="status-row">
+      <span className="status-label">{icon}<Typography.Text>{label}</Typography.Text></span>
+      <Tag color={ok ? 'success' : 'default'}>{value}</Tag>
+    </div>
+  )
+}
