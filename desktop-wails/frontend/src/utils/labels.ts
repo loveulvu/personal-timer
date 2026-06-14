@@ -16,6 +16,12 @@ const errorMappings: Array<[string, string]> = [
   ['llm is not configured', 'LLM 未配置，请检查 .env'],
   ['llm returned empty content', 'LLM 返回内容为空'],
   ['failed to fetch', '请求失败，请检查后端服务是否启动'],
+  ['backend request timed out', '请求超时，请稍后重试'],
+  ['finish_note is required', '完成备注不能为空'],
+  ['finish_description is required', '完成描述不能为空'],
+  ['task status must be completed', '只能编辑或删除已完成任务'],
+  ['actual_minutes_override must be greater than or equal to 0', '实际时长不能小于 0'],
+  ['actual_minutes_override and clear_actual_minutes_override cannot both be set', '实际时长设置与清空操作不能同时提交'],
   ['unknown error', '未知错误'],
 ]
 

@@ -97,6 +97,14 @@ func (a *App) ResumeTask(id int64) error {
 	return a.client.TimerAction(a.ctx, id, "resume")
 }
 
-func (a *App) FinishTask(id int64) error {
-	return a.client.TimerAction(a.ctx, id, "finish")
+func (a *App) FinishTask(id int64, input api.FinishTaskRequest) error {
+	return a.client.FinishTask(a.ctx, id, input)
+}
+
+func (a *App) UpdateCompletedTask(id int64, input api.UpdateCompletedTaskRequest) error {
+	return a.client.UpdateCompletedTask(a.ctx, id, input)
+}
+
+func (a *App) DeleteCompletedTask(id int64) error {
+	return a.client.DeleteCompletedTask(a.ctx, id)
 }

@@ -254,6 +254,13 @@ func (h *Handler) DeleteDailyTask(c *gin.Context) {
 			})
 			return
 		}
+		if errors.Is(err, ErrDailyTaskMustBeCompleted) {
+			c.JSON(400, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "delete daily task failed",

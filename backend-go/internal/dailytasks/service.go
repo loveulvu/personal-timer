@@ -8,6 +8,7 @@ import (
 var (
 	ErrInvalidDailyTaskStatus           = errors.New("invalid daily task status")
 	ErrInvalidDailyTaskStatusTransition = errors.New("daily task status must be changed through timer endpoints")
+	ErrDailyTaskMustBeCompleted         = errors.New("daily task status must be completed")
 )
 
 type Service struct {
@@ -63,6 +64,13 @@ func (s *Service) UpdateDailyTask(id int64, req UpdateDailyTaskRequest) error {
 }
 
 func (s *Service) DeleteDailyTask(id int64) error {
+	task, err := s.repo.GetDailyTaskByID(id)
+	if err != nil {
+		return err
+	}
+	if task.Status != "completed" {
+		return ErrDailyTaskMustBeCompleted
+	}
 	return s.repo.DeleteDailyTask(id)
 }
 

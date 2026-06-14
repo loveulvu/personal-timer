@@ -36,10 +36,18 @@ VALUES (?, ?, ?, ?)
 
 func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 	query := `
-		SELECT id, project_id, task_date, title, estimated_minutes, status, created_at, updated_at
-		FROM daily_tasks
-		WHERE task_date = ?
-		ORDER BY id DESC
+		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
+			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
+			COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0)) AS actual_seconds,
+			dt.created_at, dt.updated_at
+		FROM daily_tasks dt
+		LEFT JOIN (
+			SELECT daily_task_id, SUM(duration_seconds) AS total_seconds
+			FROM time_sessions
+			GROUP BY daily_task_id
+		) ts ON ts.daily_task_id = dt.id
+		WHERE dt.task_date = ?
+		ORDER BY dt.id DESC
 	`
 
 	rows, err := r.db.Query(query, date)
@@ -59,6 +67,11 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 			&task.Title,
 			&task.EstimatedMinutes,
 			&task.Status,
+			&task.FinishNote,
+			&task.FinishDescription,
+			&task.CompletedAt,
+			&task.ActualSecondsOverride,
+			&task.ActualSeconds,
 			&task.CreatedAt,
 			&task.UpdatedAt,
 		); err != nil {
@@ -77,9 +90,17 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 
 func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 	query := `
-		SELECT id, project_id, task_date, title, estimated_minutes, status, created_at, updated_at
-		FROM daily_tasks
-		WHERE id = ?
+		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
+			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
+			COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0)) AS actual_seconds,
+			dt.created_at, dt.updated_at
+		FROM daily_tasks dt
+		LEFT JOIN (
+			SELECT daily_task_id, SUM(duration_seconds) AS total_seconds
+			FROM time_sessions
+			GROUP BY daily_task_id
+		) ts ON ts.daily_task_id = dt.id
+		WHERE dt.id = ?
 	`
 
 	var task DailyTask
@@ -90,6 +111,11 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 		&task.Title,
 		&task.EstimatedMinutes,
 		&task.Status,
+		&task.FinishNote,
+		&task.FinishDescription,
+		&task.CompletedAt,
+		&task.ActualSecondsOverride,
+		&task.ActualSeconds,
 		&task.CreatedAt,
 		&task.UpdatedAt,
 	)

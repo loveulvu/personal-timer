@@ -4,6 +4,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { api, DailyTask, Project } from './api'
 import { StatusTag } from './components/StatusTag'
+import { TaskCompletionModal } from './features/dashboard/TaskCompletionModal'
 import { errorMessage, timerActionLabel } from './utils/labels'
 
 type Props = { connected: boolean; openProjects: () => void }
@@ -16,6 +17,7 @@ export function TodayPage({ connected, openProjects }: Props) {
   const [loading, setLoading] = useState(false)
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [completionTask, setCompletionTask] = useState<DailyTask | null>(null)
   const [form] = Form.useForm<TaskForm>()
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
 
@@ -75,7 +77,10 @@ export function TodayPage({ connected, openProjects }: Props) {
       if (action === 'start') await api.startTask(task.id)
       if (action === 'pause') await api.pauseTask(task.id)
       if (action === 'resume') await api.resumeTask(task.id)
-      if (action === 'finish') await api.finishTask(task.id)
+      if (action === 'finish') {
+        setCompletionTask(task)
+        return
+      }
       await loadTasks(date)
       message.success(`${timerActionLabel(action)}操作成功`)
     } catch (err) {
@@ -127,6 +132,7 @@ export function TodayPage({ connected, openProjects }: Props) {
       <Card title={<Space><Typography.Text strong>每日任务</Typography.Text><DatePicker value={dayjs(date)} onChange={(value: Dayjs | null) => value && setDate(value.format('YYYY-MM-DD'))} /></Space>}>
         <Table rowKey="id" loading={loading} dataSource={tasks} columns={columns} pagination={false} locale={{ emptyText: '当天暂无任务' }} />
       </Card>
+      <TaskCompletionModal task={completionTask} mode="finish" onClose={() => setCompletionTask(null)} onSaved={() => loadTasks(date)} />
     </div>
   )
 }

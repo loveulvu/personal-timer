@@ -24,12 +24,17 @@ type StartupStatus struct {
 }
 
 type DailyTask struct {
-	ID               int64  `json:"id"`
-	ProjectID        *int64 `json:"project_id"`
-	TaskDate         string `json:"task_date"`
-	Title            string `json:"title"`
-	EstimatedMinutes int    `json:"estimated_minutes"`
-	Status           string `json:"status"`
+	ID                    int64      `json:"id"`
+	ProjectID             *int64     `json:"project_id"`
+	TaskDate              string     `json:"task_date"`
+	Title                 string     `json:"title"`
+	EstimatedMinutes      int        `json:"estimated_minutes"`
+	Status                string     `json:"status"`
+	FinishNote            *string    `json:"finish_note"`
+	FinishDescription     *string    `json:"finish_description"`
+	CompletedAt           *time.Time `json:"completed_at"`
+	ActualSecondsOverride *int       `json:"actual_seconds_override"`
+	ActualSeconds         int        `json:"actual_seconds"`
 }
 
 type CreateDailyTaskRequest struct {
@@ -111,6 +116,18 @@ type GenerateDailySummaryRequest struct {
 type GenerateWeeklySummaryRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
+}
+
+type FinishTaskRequest struct {
+	FinishNote        string `json:"finish_note"`
+	FinishDescription string `json:"finish_description"`
+}
+
+type UpdateCompletedTaskRequest struct {
+	FinishNote            string `json:"finish_note"`
+	FinishDescription     string `json:"finish_description"`
+	ActualMinutesOverride *int   `json:"actual_minutes_override"`
+	ClearActualOverride   *bool  `json:"clear_actual_minutes_override,omitempty"`
 }
 
 type GenerateSummaryResult struct {

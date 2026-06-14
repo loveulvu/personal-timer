@@ -26,6 +26,11 @@ export type DailyTask = {
   title: string
   estimated_minutes: number
   status: 'planned' | 'running' | 'paused' | 'completed' | 'cancelled'
+  finish_note: string | null
+  finish_description: string | null
+  completed_at: string | null
+  actual_seconds_override: number | null
+  actual_seconds: number
 }
 
 export type CreateDailyTaskRequest = {
@@ -101,6 +106,16 @@ export type GenerateSummaryResult = {
   content: string
 }
 
+export type FinishTaskRequest = {
+  finish_note: string
+  finish_description: string
+}
+
+export type UpdateCompletedTaskRequest = FinishTaskRequest & {
+  actual_minutes_override?: number
+  clear_actual_minutes_override?: boolean
+}
+
 export type Summary = {
   id: number
   summary_type: 'daily' | 'weekly'
@@ -124,7 +139,10 @@ export const api = {
   startTask: (id: number) => AppBindings.StartTask(id),
   pauseTask: (id: number) => AppBindings.PauseTask(id),
   resumeTask: (id: number) => AppBindings.ResumeTask(id),
-  finishTask: (id: number) => AppBindings.FinishTask(id),
+  finishTask: (id: number, input: FinishTaskRequest) => AppBindings.FinishTask(id, input),
+  updateCompletedTask: (id: number, input: UpdateCompletedTaskRequest) =>
+    AppBindings.UpdateCompletedTask(id, input),
+  deleteCompletedTask: (id: number) => AppBindings.DeleteCompletedTask(id),
   getProjects: () => AppBindings.GetProjects() as Promise<Project[]>,
   getProject: (id: number) => AppBindings.GetProject(id) as Promise<Project>,
   createProject: (input: ProjectInput) =>

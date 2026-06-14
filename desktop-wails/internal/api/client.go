@@ -22,7 +22,7 @@ func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{
-			Timeout: 8 * time.Second,
+			Timeout: 90 * time.Second,
 		},
 	}
 }
@@ -202,12 +202,27 @@ func (c *Client) TestLLM(ctx context.Context) (*LLMTestResponse, error) {
 
 func (c *Client) TimerAction(ctx context.Context, id int64, action string) error {
 	switch action {
-	case "start", "pause", "resume", "finish":
+	case "start", "pause", "resume":
 	default:
 		return fmt.Errorf("unsupported timer action: %s", action)
 	}
 	path := fmt.Sprintf("/api/daily-tasks/%d/%s", id, action)
 	return c.doJSON(ctx, http.MethodPost, path, nil, nil)
+}
+
+func (c *Client) FinishTask(ctx context.Context, id int64, input FinishTaskRequest) error {
+	path := fmt.Sprintf("/api/daily-tasks/%d/finish", id)
+	return c.doJSON(ctx, http.MethodPost, path, input, nil)
+}
+
+func (c *Client) UpdateCompletedTask(ctx context.Context, id int64, input UpdateCompletedTaskRequest) error {
+	path := fmt.Sprintf("/api/daily-tasks/%d/completion", id)
+	return c.doJSON(ctx, http.MethodPut, path, input, nil)
+}
+
+func (c *Client) DeleteCompletedTask(ctx context.Context, id int64) error {
+	path := fmt.Sprintf("/api/daily-tasks/%d/completion", id)
+	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
 func (c *Client) doJSON(ctx context.Context, method, path string, body any, out any) error {
@@ -230,7 +245,14 @@ func (c *Client) doJSON(ctx context.Context, method, path string, body any, out 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return errors.New("Backend is not running. Please start backend-go first.")
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) && urlErr.Timeout() {
+			return errors.New("backend request timed out")
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return errors.New("backend request timed out")
+		}
+		return fmt.Errorf("Backend is not running. Please start backend-go first: %w", err)
 	}
 	defer resp.Body.Close()
 

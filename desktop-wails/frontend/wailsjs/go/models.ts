@@ -119,6 +119,12 @@ export namespace api {
 	    title: string;
 	    estimated_minutes: number;
 	    status: string;
+	    finish_note?: string;
+	    finish_description?: string;
+	    // Go type: time
+	    completed_at?: any;
+	    actual_seconds_override?: number;
+	    actual_seconds: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new DailyTask(source);
@@ -132,9 +138,46 @@ export namespace api {
 	        this.title = source["title"];
 	        this.estimated_minutes = source["estimated_minutes"];
 	        this.status = source["status"];
+	        this.finish_note = source["finish_note"];
+	        this.finish_description = source["finish_description"];
+	        this.completed_at = this.convertValues(source["completed_at"], null);
+	        this.actual_seconds_override = source["actual_seconds_override"];
+	        this.actual_seconds = source["actual_seconds"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	
+	export class FinishTaskRequest {
+	    finish_note: string;
+	    finish_description: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FinishTaskRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.finish_note = source["finish_note"];
+	        this.finish_description = source["finish_description"];
+	    }
+	}
 	export class GenerateSummaryResult {
 	    summary_id: number;
 	    content: string;
@@ -295,6 +338,24 @@ export namespace api {
 	        this.content = source["content"];
 	        this.source_data = source["source_data"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class UpdateCompletedTaskRequest {
+	    finish_note: string;
+	    finish_description: string;
+	    actual_minutes_override?: number;
+	    clear_actual_minutes_override?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateCompletedTaskRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.finish_note = source["finish_note"];
+	        this.finish_description = source["finish_description"];
+	        this.actual_minutes_override = source["actual_minutes_override"];
+	        this.clear_actual_minutes_override = source["clear_actual_minutes_override"];
 	    }
 	}
 	

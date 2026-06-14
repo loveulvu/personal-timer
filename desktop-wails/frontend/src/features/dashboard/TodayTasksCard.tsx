@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Empty, Form, Input, InputNumber, List, Modal, Progress, Select, Space, Typography, message } from 'antd'
 import { useState } from 'react'
 import { api, DailyTask, Project } from '../../api'
@@ -15,12 +15,14 @@ type TodayTasksCardProps = {
   connected: boolean
   openProjects: () => void
   runAction: (task: DailyTask, action: TimerAction) => void
+  editCompletedTask: (task: DailyTask) => void
+  deleteCompletedTask: (task: DailyTask) => void
   refresh: () => Promise<void>
 }
 
 type TaskForm = { projectId: number; title: string; estimatedMinutes: number }
 
-export function TodayTasksCard({ date, tasks, projects, projectNames, loading, connected, openProjects, runAction, refresh }: TodayTasksCardProps) {
+export function TodayTasksCard({ date, tasks, projects, projectNames, loading, connected, openProjects, runAction, editCompletedTask, deleteCompletedTask, refresh }: TodayTasksCardProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<TaskForm>()
   const completed = tasks.filter((task) => task.status === 'completed').length
@@ -67,11 +69,11 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
           className="task-list"
           dataSource={tasks}
           renderItem={(task) => (
-            <List.Item actions={[<TaskActions key="actions" task={task} runAction={runAction} />]}>
+            <List.Item actions={[<TaskActions key="actions" task={task} runAction={runAction} editCompletedTask={editCompletedTask} deleteCompletedTask={deleteCompletedTask} />]}>
               <List.Item.Meta
                 avatar={<span className={`task-state-dot ${task.status}`}><CheckCircleOutlined /></span>}
                 title={<Space wrap><Typography.Text strong delete={task.status === 'completed'}>{task.title}</Typography.Text><StatusTag value={task.status} /></Space>}
-                description={`${task.project_id ? projectNames.get(task.project_id) ?? `项目 #${task.project_id}` : '未分配项目'} · ${task.estimated_minutes} 分钟`}
+                description={<TaskDescription task={task} projectName={task.project_id ? projectNames.get(task.project_id) : undefined} />}
               />
             </List.Item>
           )}
@@ -100,9 +102,25 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
   )
 }
 
-function TaskActions({ task, runAction }: { task: DailyTask; runAction: (task: DailyTask, action: TimerAction) => void }) {
+function TaskDescription({ task, projectName }: { task: DailyTask; projectName?: string }) {
+  return (
+    <div>
+      <div>{projectName ?? (task.project_id ? `项目 #${task.project_id}` : '未分配项目')} · 预计 {task.estimated_minutes} 分钟</div>
+      {task.status === 'completed' && (
+        <div>
+          <div>完成备注：{task.finish_note ?? '暂无'}</div>
+          <div>完成描述：{task.finish_description ?? '暂无'}</div>
+          <div>实际时长：{Math.round(task.actual_seconds / 60)} 分钟</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TaskActions({ task, runAction, editCompletedTask, deleteCompletedTask }: { task: DailyTask; runAction: (task: DailyTask, action: TimerAction) => void; editCompletedTask: (task: DailyTask) => void; deleteCompletedTask: (task: DailyTask) => void }) {
   if (task.status === 'planned') return <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'start')}>开始</Button>
   if (task.status === 'running') return <Space size={4}><Button size="small" icon={<PauseCircleOutlined />} onClick={() => runAction(task, 'pause')}>暂停</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
   if (task.status === 'paused') return <Space size={4}><Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runAction(task, 'resume')}>继续</Button><Button size="small" icon={<StopOutlined />} onClick={() => runAction(task, 'finish')}>完成</Button></Space>
+  if (task.status === 'completed') return <Space size={4}><Button size="small" icon={<EditOutlined />} onClick={() => editCompletedTask(task)}>编辑记录</Button><Button size="small" danger icon={<DeleteOutlined />} onClick={() => deleteCompletedTask(task)}>删除记录</Button></Space>
   return null
 }

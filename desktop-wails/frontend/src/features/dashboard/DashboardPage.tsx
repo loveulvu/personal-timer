@@ -1,5 +1,5 @@
 import { CalendarOutlined } from '@ant-design/icons'
-import { Alert, DatePicker, Typography, message } from 'antd'
+import { Alert, DatePicker, Modal, Typography, message } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { api, DailyStats, DailyTask, Project, WeeklyStats } from '../../api'
@@ -9,6 +9,7 @@ import { DashboardCalendar } from './DashboardCalendar'
 import { FocusTimerCard } from './FocusTimerCard'
 import { TodayTasksCard } from './TodayTasksCard'
 import { WeeklySummaryCard } from './WeeklySummaryCard'
+import { TaskCompletionModal } from './TaskCompletionModal'
 
 type DashboardPageProps = {
   connected: boolean
@@ -25,6 +26,8 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [completionTask, setCompletionTask] = useState<DailyTask | null>(null)
+  const [completionMode, setCompletionMode] = useState<'finish' | 'edit'>('finish')
 
   const dateString = date.format('YYYY-MM-DD')
   const weekStart = date.subtract(6, 'day').format('YYYY-MM-DD')
@@ -68,7 +71,11 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
       if (action === 'start') await api.startTask(task.id)
       if (action === 'pause') await api.pauseTask(task.id)
       if (action === 'resume') await api.resumeTask(task.id)
-      if (action === 'finish') await api.finishTask(task.id)
+      if (action === 'finish') {
+        setCompletionMode('finish')
+        setCompletionTask(task)
+        return
+      }
       await loadDashboard()
       message.success(`${timerActionLabel(action)}操作成功`)
     } catch (err) {
@@ -78,6 +85,30 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  function editCompletedTask(task: DailyTask) {
+    setCompletionMode('edit')
+    setCompletionTask(task)
+  }
+
+  function deleteCompletedTask(task: DailyTask) {
+    Modal.confirm({
+      title: `确认删除任务“${task.title}”的完成记录吗？`,
+      content: '删除后会同时清理关联的计时会话，且无法恢复。',
+      okText: '删除记录',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await api.deleteCompletedTask(task.id)
+          message.success('完成记录已删除')
+          await loadDashboard()
+        } catch (err) {
+          message.error(errorMessage(err))
+        }
+      },
+    })
   }
 
   useEffect(() => {
@@ -115,6 +146,8 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
           connected={connected}
           openProjects={openProjects}
           runAction={runAction}
+          editCompletedTask={editCompletedTask}
+          deleteCompletedTask={deleteCompletedTask}
           refresh={loadDashboard}
         />
         <FocusTimerCard
@@ -131,6 +164,12 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
       </div>
 
       <WeeklySummaryCard stats={weeklyStats} loading={loading} />
+      <TaskCompletionModal
+        task={completionTask}
+        mode={completionMode}
+        onClose={() => setCompletionTask(null)}
+        onSaved={loadDashboard}
+      />
     </div>
   )
 }

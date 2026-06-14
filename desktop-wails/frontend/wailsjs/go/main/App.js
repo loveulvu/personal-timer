@@ -10,6 +10,10 @@ export function CreateProject(arg1) {
   return window['go']['main']['App']['CreateProject'](arg1);
 }
 
+export function DeleteCompletedTask(arg1) {
+  return window['go']['main']['App']['DeleteCompletedTask'](arg1);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
@@ -18,8 +22,8 @@ export function DeleteSummary(arg1) {
   return window['go']['main']['App']['DeleteSummary'](arg1);
 }
 
-export function FinishTask(arg1) {
-  return window['go']['main']['App']['FinishTask'](arg1);
+export function FinishTask(arg1, arg2) {
+  return window['go']['main']['App']['FinishTask'](arg1, arg2);
 }
 
 export function GenerateDailySummary(arg1) {
@@ -76,6 +80,10 @@ export function StartTask(arg1) {
 
 export function TestLLM() {
   return window['go']['main']['App']['TestLLM']();
+}
+
+export function UpdateCompletedTask(arg1, arg2) {
+  return window['go']['main']['App']['UpdateCompletedTask'](arg1, arg2);
 }
 
 export function UpdateProject(arg1, arg2) {

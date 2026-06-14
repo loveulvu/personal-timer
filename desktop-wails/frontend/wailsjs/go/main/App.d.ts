@@ -6,11 +6,13 @@ export function CreateDailyTask(arg1:api.CreateDailyTaskRequest):Promise<api.Cre
 
 export function CreateProject(arg1:api.ProjectInput):Promise<api.CreateResponse>;
 
+export function DeleteCompletedTask(arg1:number):Promise<void>;
+
 export function DeleteProject(arg1:number):Promise<void>;
 
 export function DeleteSummary(arg1:number):Promise<void>;
 
-export function FinishTask(arg1:number):Promise<void>;
+export function FinishTask(arg1:number,arg2:api.FinishTaskRequest):Promise<void>;
 
 export function GenerateDailySummary(arg1:string):Promise<api.GenerateSummaryResult>;
 
@@ -39,5 +41,7 @@ export function ResumeTask(arg1:number):Promise<void>;
 export function StartTask(arg1:number):Promise<void>;
 
 export function TestLLM():Promise<api.LLMTestResponse>;
+
+export function UpdateCompletedTask(arg1:number,arg2:api.UpdateCompletedTaskRequest):Promise<void>;
 
 export function UpdateProject(arg1:number,arg2:api.ProjectInput):Promise<void>;

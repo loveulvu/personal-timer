@@ -55,6 +55,8 @@ func main() {
 	api.POST("/daily-tasks/:id/pause", timerHandler.PauseTask)
 	api.POST("/daily-tasks/:id/resume", timerHandler.ResumeTask)
 	api.POST("/daily-tasks/:id/finish", timerHandler.FinishTask)
+	api.PUT("/daily-tasks/:id/completion", timerHandler.UpdateCompletedTask)
+	api.DELETE("/daily-tasks/:id/completion", timerHandler.DeleteCompletedTask)
 	timeSessionRepo := timesessions.NewRepository(mysqlDB)
 	timeSessionService := timesessions.NewService(timeSessionRepo)
 	timeSessionHandler := timesessions.NewHandler(timeSessionService)

@@ -156,6 +156,14 @@ func writeGenerateError(c *gin.Context, err error) {
 		writeError(c, 409, "summary already exists")
 		return
 	}
+	if errors.Is(err, ErrStatsQueryFailed) {
+		writeError(c, 500, err.Error())
+		return
+	}
+	if errors.Is(err, ErrSummaryPersistFailed) {
+		writeError(c, 500, err.Error())
+		return
+	}
 	if errors.Is(err, llm.ErrMissingAPIKey) {
 		writeError(c, 500, "LLM_API_KEY is required")
 		return

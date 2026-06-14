@@ -17,11 +17,11 @@ func (r *Repository) GetDailyTaskStats(date string) ([]DailyTaskStat, error) {
     dt.title,
     dt.status,
     dt.estimated_minutes,
-    COALESCE(SUM(ts.duration_seconds), 0) AS actual_seconds
+    COALESCE(dt.actual_seconds_override, COALESCE(SUM(ts.duration_seconds), 0)) AS actual_seconds
 FROM daily_tasks dt
 LEFT JOIN time_sessions ts ON ts.daily_task_id = dt.id
 WHERE dt.task_date = ?
-GROUP BY dt.id, dt.title, dt.status, dt.estimated_minutes
+GROUP BY dt.id, dt.title, dt.status, dt.estimated_minutes, dt.actual_seconds_override
 ORDER BY dt.id DESC;
 	`
 	rows, err := r.db.Query(query, date)
@@ -56,7 +56,7 @@ func (r *Repository) GetWeeklyDayStats(startDate, endDate string) ([]WeeklyDaySt
 	query := `
 		SELECT
 			DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date,
-			COALESCE(SUM(COALESCE(ts.total_seconds, 0)), 0) AS total_seconds,
+			COALESCE(SUM(COALESCE(dt.actual_seconds_override, ts.total_seconds, 0)), 0) AS total_seconds,
 			SUM(dt.status = 'completed') AS completed_count,
 			SUM(dt.status != 'completed' AND dt.status != 'cancelled') AS unfinished_count
 		FROM daily_tasks dt
@@ -105,7 +105,7 @@ func (r *Repository) GetWeeklyProjectStats(startDate, endDate string) ([]WeeklyP
 			COALESCE(p.name, 'Unassigned') AS project_name,
 			COUNT(dt.id) AS task_count,
 			SUM(dt.status = 'completed') AS completed_count,
-			COALESCE(SUM(COALESCE(ts.total_seconds, 0)), 0) AS total_seconds
+			COALESCE(SUM(COALESCE(dt.actual_seconds_override, ts.total_seconds, 0)), 0) AS total_seconds
 		FROM daily_tasks dt
 		LEFT JOIN projects p ON p.id = dt.project_id
 		LEFT JOIN (
