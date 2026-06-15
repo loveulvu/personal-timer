@@ -16,31 +16,11 @@ Personal Study Timer 是一个使用 **Go + MySQL + Wails** 开发的个人学�
 
 ## 项目截图
 
-### Today
+### 项目界面总览
 
-每日任务、计时状态和任务操作。
+界面展示了每日任务、计时状态、统计信息和 AI 总结入口。
 
-![Today - 每日任务、计时状态和任务操作](docs/images/today.png)
-
-### Completion Modal
-
-完成任务时填写备注、描述和实际时长。
-
-![Completion Modal - 完成任务记录](docs/images/completion-modal.png)
-
-### Stats
-
-日统计 / 周统计。
-
-![Stats - 日统计和周统计](docs/images/stats.png)
-
-### Summaries
-
-AI 每日总结 / 每周总结。
-
-![Summaries - AI 每日总结和每周总结](docs/images/summaries.png)
-
-> 截图文件应放在 `docs/images/`。当前 README 使用固定文件名：`today.png`、`completion-modal.png`、`stats.png`、`summaries.png`。
+![项目界面总览](docs/images/project-overview.png)
 
 ## 技术栈
 
