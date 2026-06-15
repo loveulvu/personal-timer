@@ -38,11 +38,17 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 	query := `
 		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
 			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
-			COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0)) AS actual_seconds,
+			CASE
+				WHEN dt.status = 'completed' THEN COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0))
+				ELSE COALESCE(ts.total_seconds, 0)
+			END AS actual_seconds,
+			ts.current_session_started_at,
 			dt.created_at, dt.updated_at
 		FROM daily_tasks dt
 		LEFT JOIN (
-			SELECT daily_task_id, SUM(duration_seconds) AS total_seconds
+			SELECT daily_task_id,
+				SUM(duration_seconds) AS total_seconds,
+				MAX(CASE WHEN ended_at IS NULL THEN started_at END) AS current_session_started_at
 			FROM time_sessions
 			GROUP BY daily_task_id
 		) ts ON ts.daily_task_id = dt.id
@@ -72,6 +78,7 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 			&task.CompletedAt,
 			&task.ActualSecondsOverride,
 			&task.ActualSeconds,
+			&task.CurrentSessionStartedAt,
 			&task.CreatedAt,
 			&task.UpdatedAt,
 		); err != nil {
@@ -92,11 +99,17 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 	query := `
 		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
 			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
-			COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0)) AS actual_seconds,
+			CASE
+				WHEN dt.status = 'completed' THEN COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0))
+				ELSE COALESCE(ts.total_seconds, 0)
+			END AS actual_seconds,
+			ts.current_session_started_at,
 			dt.created_at, dt.updated_at
 		FROM daily_tasks dt
 		LEFT JOIN (
-			SELECT daily_task_id, SUM(duration_seconds) AS total_seconds
+			SELECT daily_task_id,
+				SUM(duration_seconds) AS total_seconds,
+				MAX(CASE WHEN ended_at IS NULL THEN started_at END) AS current_session_started_at
 			FROM time_sessions
 			GROUP BY daily_task_id
 		) ts ON ts.daily_task_id = dt.id
@@ -116,6 +129,7 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 		&task.CompletedAt,
 		&task.ActualSecondsOverride,
 		&task.ActualSeconds,
+		&task.CurrentSessionStartedAt,
 		&task.CreatedAt,
 		&task.UpdatedAt,
 	)

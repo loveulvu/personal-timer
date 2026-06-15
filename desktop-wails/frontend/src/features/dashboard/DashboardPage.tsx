@@ -28,6 +28,7 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
   const [error, setError] = useState('')
   const [completionTask, setCompletionTask] = useState<DailyTask | null>(null)
   const [completionMode, setCompletionMode] = useState<'finish' | 'edit'>('finish')
+  const [now, setNow] = useState(() => Date.now())
 
   const dateString = date.format('YYYY-MM-DD')
   const weekStart = date.subtract(6, 'day').format('YYYY-MM-DD')
@@ -119,6 +120,13 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
     if (connected) loadDashboard()
   }, [connected, dateString])
 
+  useEffect(() => {
+    if (!runningTask) return
+    setNow(Date.now())
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [runningTask?.id, runningTask?.current_session_started_at])
+
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
@@ -153,7 +161,7 @@ export function DashboardPage({ connected, openProjects }: DashboardPageProps) {
         <FocusTimerCard
           task={runningTask}
           projectName={runningTask ? projectNames.get(runningTask.project_id ?? -1) : undefined}
-          dailyStats={dailyStats}
+          now={now}
           loading={loading}
           runAction={runAction}
         />

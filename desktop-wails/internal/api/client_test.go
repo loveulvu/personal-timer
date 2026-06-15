@@ -36,6 +36,25 @@ func TestGenerateWeeklySummaryUsesWeeklyRouteAndDates(t *testing.T) {
 	}
 }
 
+func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":1,"project_id":1,"task_date":"2026-06-15","title":"test","estimated_minutes":30,"status":"running","actual_seconds":120,"current_session_started_at":"2026-06-15T10:00:00+08:00"}]}`))
+	}))
+	defer server.Close()
+
+	tasks, err := NewClient(server.URL).ListDailyTasks(context.Background(), "2026-06-15")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 1 || tasks[0].CurrentSessionStartedAt == nil {
+		t.Fatalf("expected current session started_at, got %#v", tasks)
+	}
+	if got := tasks[0].CurrentSessionStartedAt.Format(time.RFC3339); got != "2026-06-15T10:00:00+08:00" {
+		t.Fatalf("unexpected current session started_at: %s", got)
+	}
+}
+
 func TestDoJSONReportsTimeoutInsteadOfBackendOffline(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		time.Sleep(50 * time.Millisecond)

@@ -125,6 +125,8 @@ export namespace api {
 	    completed_at?: any;
 	    actual_seconds_override?: number;
 	    actual_seconds: number;
+	    // Go type: time
+	    current_session_started_at?: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new DailyTask(source);
@@ -143,6 +145,7 @@ export namespace api {
 	        this.completed_at = this.convertValues(source["completed_at"], null);
 	        this.actual_seconds_override = source["actual_seconds_override"];
 	        this.actual_seconds = source["actual_seconds"];
+	        this.current_session_started_at = this.convertValues(source["current_session_started_at"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

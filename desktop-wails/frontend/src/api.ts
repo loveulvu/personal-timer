@@ -31,6 +31,7 @@ export type DailyTask = {
   completed_at: string | null
   actual_seconds_override: number | null
   actual_seconds: number
+  current_session_started_at: string | null
 }
 
 export type CreateDailyTaskRequest = {

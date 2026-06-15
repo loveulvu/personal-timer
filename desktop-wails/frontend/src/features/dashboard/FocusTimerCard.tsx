@@ -1,22 +1,24 @@
 import { PauseOutlined, StopOutlined } from '@ant-design/icons'
 import { Button, Card, Progress, Space, Typography } from 'antd'
-import { DailyStats, DailyTask } from '../../api'
+import { DailyTask } from '../../api'
+import { displayElapsedSeconds, timerProgressPercent } from '../../utils/timerDisplay'
 import { TimerAction } from './DashboardPage'
 
 type FocusTimerCardProps = {
   task: DailyTask | null
   projectName?: string
-  dailyStats: DailyStats | null
+  now: number
   loading: boolean
   runAction: (task: DailyTask, action: TimerAction) => void
 }
 
-export function FocusTimerCard({ task, projectName, dailyStats, loading, runAction }: FocusTimerCardProps) {
-  const actualMinutes = task ? dailyStats?.tasks?.find((item) => item.task_id === task.id)?.actual_minutes ?? 0 : 0
-  const percent = task?.estimated_minutes ? Math.min(100, Math.round((actualMinutes / task.estimated_minutes) * 100)) : 0
+export function FocusTimerCard({ task, projectName, now, loading, runAction }: FocusTimerCardProps) {
+  const elapsedSeconds = task ? displayElapsedSeconds(task, now) : 0
+  const actualMinutes = Math.floor(elapsedSeconds / 60)
+  const percent = task ? timerProgressPercent(elapsedSeconds, task.estimated_minutes) : 0
 
   return (
-    <Card className="dashboard-card focus-card" title="当前计时" loading={loading && !dailyStats}>
+    <Card className="dashboard-card focus-card" title="当前计时" loading={loading && !task}>
       {task ? (
         <>
           <Progress
