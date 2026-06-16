@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,7 +58,7 @@ func NewClientFromEnv() *HTTPClient {
 		baseURL: strings.TrimSpace(os.Getenv("LLM_BASE_URL")),
 		model:   strings.TrimSpace(os.Getenv("LLM_MODEL")),
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: llmTimeoutFromEnv(),
 		},
 	}
 }
@@ -116,7 +117,12 @@ func (c *HTTPClient) GenerateSummary(ctx context.Context, prompt string) (string
 		return "", fmt.Errorf("%w: %v", ErrRequestFailed, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("%w with status %d", ErrRequestFailed, resp.StatusCode)
+		return "", fmt.Errorf(
+			"%w with status %d: %s",
+			ErrRequestFailed,
+			resp.StatusCode,
+			truncateForLog(string(responseBody), 1000),
+		)
 	}
 
 	var result chatResponse
@@ -141,4 +147,26 @@ func isTimeout(err error) bool {
 
 	var netErr net.Error
 	return errors.As(err, &netErr) && netErr.Timeout()
+}
+
+func llmTimeoutFromEnv() time.Duration {
+	for _, key := range []string{"SUMMARY_LLM_TIMEOUT_SECONDS", "LLM_TIMEOUT_SECONDS"} {
+		value := strings.TrimSpace(os.Getenv(key))
+		if value == "" {
+			continue
+		}
+		seconds, err := strconv.Atoi(value)
+		if err == nil && seconds > 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
+	return 90 * time.Second
+}
+
+func truncateForLog(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit] + "...(truncated)"
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"sort"
@@ -85,7 +86,8 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		return nil, err
 	}
 
-	content, err := s.llmClient.GenerateSummary(ctx, buildDailyPrompt(string(sourceData)))
+	dailyPrompt := buildDailyPrompt(string(sourceData))
+	content, err := s.generateSummaryWithLog(ctx, "daily", dailyPrompt, len(sourceData))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
 	}
@@ -148,7 +150,8 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 		return nil, err
 	}
 
-	content, err := s.llmClient.GenerateSummary(ctx, buildWeeklyPrompt(string(sourceData)))
+	weeklyPrompt := buildWeeklyPrompt(string(sourceData))
+	content, err := s.generateSummaryWithLog(ctx, "weekly", weeklyPrompt, len(sourceData))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
 	}
@@ -180,6 +183,31 @@ func (s *Service) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSumma
 
 func (s *Service) DeleteSummary(ctx context.Context, id int64) error {
 	return s.repo.DeleteSummary(ctx, id)
+}
+
+func (s *Service) generateSummaryWithLog(ctx context.Context, summaryType, prompt string, sourceDataBytes int) (string, error) {
+	startedAt := time.Now()
+	content, err := s.llmClient.GenerateSummary(ctx, prompt)
+	elapsed := time.Since(startedAt)
+	if err != nil {
+		log.Printf(
+			"LLM summary generation failed: summary_type=%s elapsed=%s prompt_chars=%d source_data_bytes=%d error=%v",
+			summaryType,
+			elapsed.Round(time.Millisecond),
+			utf8.RuneCountInString(prompt),
+			sourceDataBytes,
+			err,
+		)
+		return "", err
+	}
+	log.Printf(
+		"LLM summary generation succeeded: summary_type=%s elapsed=%s prompt_chars=%d source_data_bytes=%d",
+		summaryType,
+		elapsed.Round(time.Millisecond),
+		utf8.RuneCountInString(prompt),
+		sourceDataBytes,
+	)
+	return content, nil
 }
 
 func buildDailyPrompt(sourceData string) string {
