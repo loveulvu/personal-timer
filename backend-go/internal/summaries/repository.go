@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -13,6 +15,26 @@ var ErrSummaryNotFound = errors.New("summary not found")
 
 type Repository struct {
 	db *sql.DB
+}
+
+type dailySummaryTaskRow struct {
+	TaskID                int64
+	Date                  string
+	ProjectName           string
+	Title                 string
+	EstimatedMinutes      int
+	Status                string
+	FinishNote            string
+	FinishDescription     string
+	ActualSecondsOverride sql.NullInt64
+	SessionSeconds        int
+}
+
+type dailySummarySessionRow struct {
+	Date            string
+	ProjectName     string
+	StartedAt       time.Time
+	DurationSeconds int
 }
 
 func NewRepository(db *sql.DB) *Repository {
@@ -64,6 +86,145 @@ func (r *Repository) SummaryExists(ctx context.Context, summaryType, startDate, 
 	}
 
 	return true, nil
+}
+
+func (r *Repository) ListRecentDailyActiveDates(ctx context.Context, beforeDate string, limit int) ([]string, error) {
+	query := `
+		SELECT DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date
+		FROM daily_tasks dt
+		LEFT JOIN time_sessions ts ON ts.daily_task_id = dt.id
+		WHERE dt.task_date < ?
+			AND (dt.id > 0 OR ts.id IS NOT NULL OR dt.status = 'completed')
+		GROUP BY dt.task_date
+		ORDER BY dt.task_date DESC
+		LIMIT ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, beforeDate, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dates := make([]string, 0, limit)
+	for rows.Next() {
+		var date string
+		if err := rows.Scan(&date); err != nil {
+			return nil, err
+		}
+		dates = append(dates, date)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return dates, nil
+}
+
+func (r *Repository) ListDailySummaryTasks(ctx context.Context, dates []string) ([]dailySummaryTaskRow, error) {
+	if len(dates) == 0 {
+		return []dailySummaryTaskRow{}, nil
+	}
+
+	query := `
+		SELECT
+			dt.id,
+			DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date,
+			COALESCE(p.name, 'Unassigned') AS project_name,
+			dt.title,
+			dt.estimated_minutes,
+			dt.status,
+			COALESCE(dt.finish_note, '') AS finish_note,
+			COALESCE(dt.finish_description, '') AS finish_description,
+			dt.actual_seconds_override,
+			COALESCE(ts.total_seconds, 0) AS session_seconds
+		FROM daily_tasks dt
+		LEFT JOIN projects p ON p.id = dt.project_id
+		LEFT JOIN (
+			SELECT daily_task_id, SUM(duration_seconds) AS total_seconds
+			FROM time_sessions
+			GROUP BY daily_task_id
+		) ts ON ts.daily_task_id = dt.id
+		WHERE dt.task_date IN (` + placeholders(len(dates)) + `)
+		ORDER BY dt.task_date DESC, dt.id ASC
+	`
+
+	args := stringsToArgs(dates)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tasks := make([]dailySummaryTaskRow, 0)
+	for rows.Next() {
+		var task dailySummaryTaskRow
+		if err := rows.Scan(
+			&task.TaskID,
+			&task.Date,
+			&task.ProjectName,
+			&task.Title,
+			&task.EstimatedMinutes,
+			&task.Status,
+			&task.FinishNote,
+			&task.FinishDescription,
+			&task.ActualSecondsOverride,
+			&task.SessionSeconds,
+		); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+func (r *Repository) ListDailySummarySessions(ctx context.Context, dates []string) ([]dailySummarySessionRow, error) {
+	if len(dates) == 0 {
+		return []dailySummarySessionRow{}, nil
+	}
+
+	query := `
+		SELECT
+			DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date,
+			COALESCE(p.name, 'Unassigned') AS project_name,
+			ts.started_at,
+			ts.duration_seconds
+		FROM time_sessions ts
+		INNER JOIN daily_tasks dt ON dt.id = ts.daily_task_id
+		LEFT JOIN projects p ON p.id = dt.project_id
+		WHERE dt.task_date IN (` + placeholders(len(dates)) + `)
+		ORDER BY dt.task_date DESC, ts.started_at ASC, ts.id ASC
+	`
+
+	args := stringsToArgs(dates)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sessions := make([]dailySummarySessionRow, 0)
+	for rows.Next() {
+		var session dailySummarySessionRow
+		if err := rows.Scan(
+			&session.Date,
+			&session.ProjectName,
+			&session.StartedAt,
+			&session.DurationSeconds,
+		); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return sessions, nil
 }
 
 func (r *Repository) ListSummaries(ctx context.Context, summaryType string) ([]GeneratedSummary, error) {
@@ -171,4 +332,19 @@ func (r *Repository) DeleteSummary(ctx context.Context, id int64) error {
 func isDuplicateKey(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
+}
+
+func placeholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	return strings.TrimRight(strings.Repeat("?,", count), ",")
+}
+
+func stringsToArgs(values []string) []any {
+	args := make([]any, 0, len(values))
+	for _, value := range values {
+		args = append(args, value)
+	}
+	return args
 }
