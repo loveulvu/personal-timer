@@ -214,6 +214,8 @@ export namespace api {
 	    name: string;
 	    description: string;
 	    is_fixed: boolean;
+	    category: string;
+	    include_in_summary: boolean;
 	    // Go type: time
 	    created_at: any;
 	    // Go type: time
@@ -229,6 +231,8 @@ export namespace api {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.is_fixed = source["is_fixed"];
+	        this.category = source["category"];
+	        this.include_in_summary = source["include_in_summary"];
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.updated_at = this.convertValues(source["updated_at"], null);
 	    }
@@ -255,6 +259,8 @@ export namespace api {
 	    name: string;
 	    description: string;
 	    is_fixed: boolean;
+	    category: string;
+	    include_in_summary: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectInput(source);
@@ -265,6 +271,8 @@ export namespace api {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.is_fixed = source["is_fixed"];
+	        this.category = source["category"];
+	        this.include_in_summary = source["include_in_summary"];
 	    }
 	}
 	export class VersionInfo {
@@ -450,4 +458,3 @@ export namespace api {
 	}
 
 }
-

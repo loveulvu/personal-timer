@@ -17,11 +17,11 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) CreateProject(input CreateProjectInput) (int64, error) {
 	query := `
-		INSERT INTO projects (name, description, is_fixed)
-		VALUES (?, ?, ?)
+		INSERT INTO projects (name, description, is_fixed, category, include_in_summary)
+		VALUES (?, ?, ?, ?, ?)
 	`
 
-	result, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed)
+	result, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, input.Category, input.IncludeInSummary)
 	if err != nil {
 		return 0, err
 	}
@@ -35,7 +35,7 @@ func (r *Repository) CreateProject(input CreateProjectInput) (int64, error) {
 }
 func (r *Repository) ListProjects() ([]Project, error) {
 	query := `
-		SELECT id, name, description, is_fixed, created_at, updated_at
+		SELECT id, name, description, is_fixed, category, include_in_summary, created_at, updated_at
 FROM projects
 ORDER BY id DESC
 	`
@@ -53,6 +53,8 @@ ORDER BY id DESC
 			&p.Name,
 			&p.Description,
 			&p.IsFixed,
+			&p.Category,
+			&p.IncludeInSummary,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		)
@@ -71,7 +73,7 @@ ORDER BY id DESC
 }
 func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 	query := `
-		SELECT id, name, description, is_fixed, created_at, updated_at
+		SELECT id, name, description, is_fixed, category, include_in_summary, created_at, updated_at
 		FROM projects
 		WHERE id = ?
 	`
@@ -83,6 +85,8 @@ func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 		&p.Name,
 		&p.Description,
 		&p.IsFixed,
+		&p.Category,
+		&p.IncludeInSummary,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -97,9 +101,9 @@ func (r *Repository) GetProjectByID(id int64) (*Project, error) {
 }
 
 func (r *Repository) UpdateProject(id int64, input UpdateProjectInput) error {
-	query := `UPDATE projects SET name=?, description=?, is_fixed=? WHERE id=?`
+	query := `UPDATE projects SET name=?, description=?, is_fixed=?, category=?, include_in_summary=? WHERE id=?`
 
-	result, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, id)
+	result, err := r.db.Exec(query, input.Name, input.Description, input.IsFixed, input.Category, input.IncludeInSummary, id)
 	if err != nil {
 		return err
 	}

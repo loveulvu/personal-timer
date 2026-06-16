@@ -46,14 +46,20 @@ export type Project = {
   name: string
   description: string
   is_fixed: boolean
+  category: ProjectCategory
+  include_in_summary: boolean
   created_at: string
   updated_at: string
 }
+
+export type ProjectCategory = 'study' | 'project' | 'life' | 'break' | 'other'
 
 export type ProjectInput = {
   name: string
   description: string
   is_fixed: boolean
+  category: ProjectCategory
+  include_in_summary: boolean
 }
 
 export type DailyTaskStat = {

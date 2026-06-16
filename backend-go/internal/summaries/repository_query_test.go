@@ -14,6 +14,8 @@ func TestRecentActiveDateQueryUsesDatesBeforeTargetAndLimit(t *testing.T) {
 	text := string(source)
 	required := []string{
 		"WHERE dt.task_date < ?",
+		"p.id IS NOT NULL",
+		"COALESCE(p.include_in_summary, TRUE)",
 		"ORDER BY dt.task_date DESC",
 		"LIMIT ?",
 	}

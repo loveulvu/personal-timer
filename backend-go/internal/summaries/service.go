@@ -2,6 +2,7 @@ package summaries
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -200,6 +201,10 @@ func buildDailyPrompt(sourceData string) string {
 - days_with_data >= 2：可以描述初步变化，但要说明样本有限。
 - days_with_data >= 3：可以分析短期模式。
 - 如果某项数据缺失，明确说“当前数据不足以判断”。
+- source_data 中 excluded 的内容只用于说明数据范围，不要把 excluded 项目计入学习总时长。
+- 如果存在 excluded_projects，可以简要说明生活类/未纳入总结的任务已排除。
+- 不要把 life/break 类项目当作学习效率问题分析。
+- 如果存在 unassigned_task_count，建议用户补充项目分类或绑定项目。
 
 Daily Summary 输出结构必须固定为：
 
@@ -251,6 +256,10 @@ func buildWeeklyPrompt(sourceData string) string {
 - days_with_data >= 3：可以分析本周模式。
 - previous_week_comparison.available = false 时，不要做上周对比。
 - 如果某项数据缺失，明确说“当前数据不足以判断”。
+- source_data 中 excluded 的内容只用于说明数据范围，不要把 excluded 项目计入学习总时长。
+- 如果存在 excluded_projects，可以简要说明生活类/未纳入总结的任务已排除。
+- 不要把 life/break 类项目当作学习效率问题分析。
+- 如果存在 unassigned_task_count，建议用户补充项目分类或绑定项目。
 
 Weekly Summary 输出结构必须固定为：
 
@@ -286,9 +295,12 @@ Weekly Summary 输出结构必须固定为：
 }
 
 func buildDailySummarySourceData(targetDate string, recentDates []string, tasks []dailySummaryTaskRow, sessions []dailySummarySessionRow) DailySummarySourceData {
+	includedTasks, includedSessions, excluded := splitSummaryScope(tasks, sessions)
 	contextDates := append([]string{targetDate}, recentDates...)
-	tasksByDate := groupTasksByDate(tasks)
-	sessionsByDate := groupSessionsByDate(sessions)
+	tasksByDate := groupTasksByDate(includedTasks)
+	sessionsByDate := groupSessionsByDate(includedSessions)
+	recentDates = datesWithData(recentDates, tasksByDate, sessionsByDate)
+	contextDates = append([]string{targetDate}, recentDates...)
 	todayTasks := tasksByDate[targetDate]
 	todaySessions := sessionsByDate[targetDate]
 	todayHasData := len(todayTasks) > 0 || len(todaySessions) > 0
@@ -319,16 +331,20 @@ func buildDailySummarySourceData(targetDate string, recentDates []string, tasks 
 			ProjectPatterns:  buildProjectPatterns(contextDates, tasksByDate, sessionsByDate),
 			RepeatedNotes:    extractRepeatedNotes(tasksForDates(contextDates, tasksByDate)),
 		},
+		Excluded: excluded,
+		Warnings: buildSummaryWarnings(excluded),
 	}
 
 	return source
 }
 
 func buildWeeklySummarySourceData(weekStart, weekEnd string, weekDates []string, weekTasks []dailySummaryTaskRow, weekSessions []dailySummarySessionRow, previousWeekDates []string, previousWeekTasks []dailySummaryTaskRow, previousWeekSessions []dailySummarySessionRow) WeeklySummarySourceData {
-	tasksByDate := groupTasksByDate(weekTasks)
-	sessionsByDate := groupSessionsByDate(weekSessions)
-	previousTasksByDate := groupTasksByDate(previousWeekTasks)
-	previousSessionsByDate := groupSessionsByDate(previousWeekSessions)
+	includedWeekTasks, includedWeekSessions, excluded := splitSummaryScope(weekTasks, weekSessions)
+	includedPreviousWeekTasks, includedPreviousWeekSessions, _ := splitSummaryScope(previousWeekTasks, previousWeekSessions)
+	tasksByDate := groupTasksByDate(includedWeekTasks)
+	sessionsByDate := groupSessionsByDate(includedWeekSessions)
+	previousTasksByDate := groupTasksByDate(includedPreviousWeekTasks)
+	previousSessionsByDate := groupSessionsByDate(includedPreviousWeekSessions)
 	daysWithData := countDatesWithData(weekDates, tasksByDate, sessionsByDate)
 	previousDaysWithData := countDatesWithData(previousWeekDates, previousTasksByDate, previousSessionsByDate)
 
@@ -342,17 +358,88 @@ func buildWeeklySummarySourceData(weekStart, weekEnd string, weekDates []string,
 			HasPreviousWeek: previousDaysWithData > 0,
 		},
 		Week: WeeklySummaryWeek{
-			TotalFocusMinutes: totalTaskMinutes(weekTasks),
-			CompletedTasks:    countCompletedTasks(weekTasks),
-			TaskCount:         len(weekTasks),
+			TotalFocusMinutes: totalTaskMinutes(includedWeekTasks),
+			CompletedTasks:    countCompletedTasks(includedWeekTasks),
+			TaskCount:         len(includedWeekTasks),
 			DailyTotals:       buildWeeklyDailyTotals(weekDates, tasksByDate, sessionsByDate),
 			ProjectBreakdown:  buildWeeklyProjectBreakdown(weekDates, tasksByDate),
-			TimeDistribution:  buildTimeDistribution(weekSessions),
+			TimeDistribution:  buildTimeDistribution(includedWeekSessions),
 			StartTimePatterns: buildWeeklyStartTimePatterns(weekDates, tasksByDate, sessionsByDate),
-			RepeatedNotes:     extractRepeatedNotes(weekTasks),
+			RepeatedNotes:     extractRepeatedNotes(includedWeekTasks),
 		},
-		PreviousWeekComparison: buildPreviousWeekComparison(previousDaysWithData, previousWeekTasks),
+		PreviousWeekComparison: buildPreviousWeekComparison(previousDaysWithData, includedPreviousWeekTasks),
+		Excluded:               excluded,
+		Warnings:               buildSummaryWarnings(excluded),
 	}
+}
+
+func splitSummaryScope(tasks []dailySummaryTaskRow, sessions []dailySummarySessionRow) ([]dailySummaryTaskRow, []dailySummarySessionRow, SummaryExcluded) {
+	includedTasks := make([]dailySummaryTaskRow, 0, len(tasks))
+	includedSessions := make([]dailySummarySessionRow, 0, len(sessions))
+	excluded := SummaryExcluded{}
+	excludedTotalSeconds := 0
+	unassignedTotalSeconds := 0
+	excludedSecondsByProject := make(map[string]int)
+	excludedCategoryByProject := make(map[string]string)
+
+	for _, task := range tasks {
+		if isIncludedInSummary(task.ProjectID, task.IncludeInSummary) {
+			includedTasks = append(includedTasks, task)
+			continue
+		}
+
+		seconds := actualSeconds(task)
+		excluded.ExcludedTaskCount++
+		excludedTotalSeconds += seconds
+		if !task.ProjectID.Valid {
+			excluded.UnassignedTaskCount++
+			unassignedTotalSeconds += seconds
+			continue
+		}
+		excludedSecondsByProject[task.ProjectName] += seconds
+		excludedCategoryByProject[task.ProjectName] = task.ProjectCategory
+	}
+
+	for _, session := range sessions {
+		if isIncludedInSummary(session.ProjectID, session.IncludeInSummary) {
+			includedSessions = append(includedSessions, session)
+		}
+	}
+
+	excluded.ExcludedTotalMinutes = secondsToMinutes(excludedTotalSeconds)
+	excluded.UnassignedTotalMinutes = secondsToMinutes(unassignedTotalSeconds)
+	excluded.ExcludedProjects = buildExcludedProjects(excludedSecondsByProject, excludedCategoryByProject)
+	return includedTasks, includedSessions, excluded
+}
+
+func isIncludedInSummary(projectID sql.NullInt64, includeInSummary bool) bool {
+	return projectID.Valid && includeInSummary
+}
+
+func buildExcludedProjects(secondsByProject map[string]int, categoryByProject map[string]string) []SummaryExcludedProject {
+	projects := make([]SummaryExcludedProject, 0, len(secondsByProject))
+	for projectName, seconds := range secondsByProject {
+		projects = append(projects, SummaryExcludedProject{
+			ProjectName:  projectName,
+			Category:     categoryByProject[projectName],
+			TotalMinutes: secondsToMinutes(seconds),
+		})
+	}
+	sort.Slice(projects, func(i, j int) bool {
+		if projects[i].TotalMinutes == projects[j].TotalMinutes {
+			return projects[i].ProjectName < projects[j].ProjectName
+		}
+		return projects[i].TotalMinutes > projects[j].TotalMinutes
+	})
+	return projects
+}
+
+func buildSummaryWarnings(excluded SummaryExcluded) []string {
+	warnings := make([]string, 0, 1)
+	if excluded.UnassignedTaskCount > 0 {
+		warnings = append(warnings, "存在未绑定项目的任务，已从学习总结中排除。")
+	}
+	return warnings
 }
 
 func groupTasksByDate(tasks []dailySummaryTaskRow) map[string][]dailySummaryTaskRow {
@@ -371,6 +458,16 @@ func countDatesWithData(dates []string, tasksByDate map[string][]dailySummaryTas
 		}
 	}
 	return count
+}
+
+func datesWithData(dates []string, tasksByDate map[string][]dailySummaryTaskRow, sessionsByDate map[string][]dailySummarySessionRow) []string {
+	result := make([]string, 0, len(dates))
+	for _, date := range dates {
+		if len(tasksByDate[date]) > 0 || len(sessionsByDate[date]) > 0 {
+			result = append(result, date)
+		}
+	}
+	return result
 }
 
 func groupSessionsByDate(sessions []dailySummarySessionRow) map[string][]dailySummarySessionRow {

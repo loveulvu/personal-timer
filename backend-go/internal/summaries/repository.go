@@ -20,7 +20,10 @@ type Repository struct {
 type dailySummaryTaskRow struct {
 	TaskID                int64
 	Date                  string
+	ProjectID             sql.NullInt64
 	ProjectName           string
+	ProjectCategory       string
+	IncludeInSummary      bool
 	Title                 string
 	EstimatedMinutes      int
 	Status                string
@@ -31,10 +34,13 @@ type dailySummaryTaskRow struct {
 }
 
 type dailySummarySessionRow struct {
-	Date            string
-	ProjectName     string
-	StartedAt       time.Time
-	DurationSeconds int
+	Date             string
+	ProjectID        sql.NullInt64
+	ProjectName      string
+	ProjectCategory  string
+	IncludeInSummary bool
+	StartedAt        time.Time
+	DurationSeconds  int
 }
 
 func NewRepository(db *sql.DB) *Repository {
@@ -93,7 +99,10 @@ func (r *Repository) ListRecentDailyActiveDates(ctx context.Context, beforeDate 
 		SELECT DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date
 		FROM daily_tasks dt
 		LEFT JOIN time_sessions ts ON ts.daily_task_id = dt.id
+		LEFT JOIN projects p ON p.id = dt.project_id
 		WHERE dt.task_date < ?
+			AND p.id IS NOT NULL
+			AND COALESCE(p.include_in_summary, TRUE)
 			AND (dt.id > 0 OR ts.id IS NOT NULL OR dt.status = 'completed')
 		GROUP BY dt.task_date
 		ORDER BY dt.task_date DESC
@@ -130,7 +139,10 @@ func (r *Repository) ListDailySummaryTasks(ctx context.Context, dates []string) 
 		SELECT
 			dt.id,
 			DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date,
+			dt.project_id,
 			COALESCE(p.name, 'Unassigned') AS project_name,
+			COALESCE(p.category, 'study') AS project_category,
+			(p.id IS NOT NULL AND COALESCE(p.include_in_summary, TRUE)) AS include_in_summary,
 			dt.title,
 			dt.estimated_minutes,
 			dt.status,
@@ -162,7 +174,10 @@ func (r *Repository) ListDailySummaryTasks(ctx context.Context, dates []string) 
 		if err := rows.Scan(
 			&task.TaskID,
 			&task.Date,
+			&task.ProjectID,
 			&task.ProjectName,
+			&task.ProjectCategory,
+			&task.IncludeInSummary,
 			&task.Title,
 			&task.EstimatedMinutes,
 			&task.Status,
@@ -190,7 +205,10 @@ func (r *Repository) ListDailySummarySessions(ctx context.Context, dates []strin
 	query := `
 		SELECT
 			DATE_FORMAT(dt.task_date, '%Y-%m-%d') AS task_date,
+			dt.project_id,
 			COALESCE(p.name, 'Unassigned') AS project_name,
+			COALESCE(p.category, 'study') AS project_category,
+			(p.id IS NOT NULL AND COALESCE(p.include_in_summary, TRUE)) AS include_in_summary,
 			ts.started_at,
 			ts.duration_seconds
 		FROM time_sessions ts
@@ -212,7 +230,10 @@ func (r *Repository) ListDailySummarySessions(ctx context.Context, dates []strin
 		var session dailySummarySessionRow
 		if err := rows.Scan(
 			&session.Date,
+			&session.ProjectID,
 			&session.ProjectName,
+			&session.ProjectCategory,
+			&session.IncludeInSummary,
 			&session.StartedAt,
 			&session.DurationSeconds,
 		); err != nil {

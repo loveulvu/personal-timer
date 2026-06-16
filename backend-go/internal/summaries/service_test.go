@@ -42,6 +42,10 @@ func TestDailySummarySourceDataSingleDayDoesNotAnalyzeTrend(t *testing.T) {
 		"days_with_data >= 2：可以描述初步变化，但要说明样本有限",
 		"days_with_data >= 3：可以分析短期模式",
 		"当前数据不足以判断",
+		"excluded 的内容只用于说明数据范围",
+		"不要把 excluded 项目计入学习总时长",
+		"不要把 life/break 类项目当作学习效率问题分析",
+		"unassigned_task_count",
 		"# 每日学习总结",
 		"## 1. 今日概览",
 		"## 2. 时间分布",
@@ -195,6 +199,64 @@ func TestDailySummaryRepeatedNotesUsesFinishTextAndFiltersShortAndNumericTokens(
 	}
 }
 
+func TestDailySummaryExcludesProjectsOutsideSummaryScope(t *testing.T) {
+	source := buildDailySummarySourceData(
+		"2026-06-18",
+		nil,
+		[]dailySummaryTaskRow{
+			taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "接口联调", ""),
+			excludedTaskRow("2026-06-18", "吃饭", "life", "completed", 60, 3600, "生活备注", "不应进入总结"),
+		},
+		[]dailySummarySessionRow{
+			sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800),
+			excludedSessionRow("2026-06-18", "吃饭", "life", "2026-06-18T12:00:00", 3600),
+		},
+	)
+
+	if source.Today.TotalFocusMinutes != 30 {
+		t.Fatalf("today.total_focus_minutes = %d, want 30", source.Today.TotalFocusMinutes)
+	}
+	if source.Today.TaskCount != 1 || source.Today.CompletedTasks != 1 {
+		t.Fatalf("today task counts = %+v, want only included task", source.Today)
+	}
+	if len(source.Today.ProjectBreakdown) != 1 || source.Today.ProjectBreakdown[0].ProjectName != "Go" {
+		t.Fatalf("project_breakdown = %+v, want only Go", source.Today.ProjectBreakdown)
+	}
+	if got := strings.Join(source.RecentContext.RepeatedNotes, ","); strings.Contains(got, "生活备注") || strings.Contains(got, "不应进入总结") {
+		t.Fatalf("repeated_notes = %v, should not include excluded project notes", source.RecentContext.RepeatedNotes)
+	}
+	if source.Excluded.ExcludedTaskCount != 1 ||
+		source.Excluded.ExcludedTotalMinutes != 60 ||
+		len(source.Excluded.ExcludedProjects) != 1 ||
+		source.Excluded.ExcludedProjects[0].ProjectName != "吃饭" ||
+		source.Excluded.ExcludedProjects[0].Category != "life" {
+		t.Fatalf("excluded = %+v, want excluded life project", source.Excluded)
+	}
+}
+
+func TestDailySummaryExcludesUnassignedTasks(t *testing.T) {
+	source := buildDailySummarySourceData(
+		"2026-06-18",
+		nil,
+		[]dailySummaryTaskRow{
+			unassignedTaskRow("2026-06-18", "completed", 30, 1800, "未绑定", ""),
+		},
+		[]dailySummarySessionRow{
+			unassignedSessionRow("2026-06-18", "2026-06-18T15:00:00", 1800),
+		},
+	)
+
+	if source.Today.TotalFocusMinutes != 0 || source.Today.TaskCount != 0 {
+		t.Fatalf("today = %+v, want unassigned task excluded", source.Today)
+	}
+	if source.Excluded.UnassignedTaskCount != 1 || source.Excluded.UnassignedTotalMinutes != 30 {
+		t.Fatalf("excluded = %+v, want unassigned counts", source.Excluded)
+	}
+	if len(source.Warnings) == 0 {
+		t.Fatalf("warnings = %v, want unassigned warning", source.Warnings)
+	}
+}
+
 func TestWeeklySummarySourceDataBasicStructureAndAggregation(t *testing.T) {
 	overrideSeconds := 3600
 	weekDates := mustDateRange("2026-06-15", "2026-06-21")
@@ -271,6 +333,67 @@ func TestWeeklySummarySourceDataBasicStructureAndAggregation(t *testing.T) {
 	}
 }
 
+func TestWeeklySummaryExcludesProjectsOutsideSummaryScope(t *testing.T) {
+	source := buildWeeklySummarySourceData(
+		"2026-06-15",
+		"2026-06-21",
+		mustDateRange("2026-06-15", "2026-06-21"),
+		[]dailySummaryTaskRow{
+			taskRow("2026-06-15", "Go", "completed", 30, 1800, nil, "接口联调", ""),
+			excludedTaskRow("2026-06-15", "吃饭", "life", "completed", 60, 3600, "生活备注", ""),
+		},
+		[]dailySummarySessionRow{
+			sessionRow("2026-06-15", "Go", "2026-06-15T15:00:00", 1800),
+			excludedSessionRow("2026-06-15", "吃饭", "life", "2026-06-15T12:00:00", 3600),
+		},
+		mustDateRange("2026-06-08", "2026-06-14"),
+		nil,
+		nil,
+	)
+
+	if source.Week.TotalFocusMinutes != 30 || source.Week.TaskCount != 1 {
+		t.Fatalf("week = %+v, want only included task", source.Week)
+	}
+	if len(source.Week.ProjectBreakdown) != 1 || source.Week.ProjectBreakdown[0].ProjectName != "Go" {
+		t.Fatalf("project_breakdown = %+v, want only Go", source.Week.ProjectBreakdown)
+	}
+	if len(source.Week.StartTimePatterns) != 1 || source.Week.StartTimePatterns[0].ProjectName != "Go" {
+		t.Fatalf("start_time_patterns = %+v, want only Go", source.Week.StartTimePatterns)
+	}
+	if got := strings.Join(source.Week.RepeatedNotes, ","); strings.Contains(got, "生活备注") {
+		t.Fatalf("repeated_notes = %v, should not include excluded notes", source.Week.RepeatedNotes)
+	}
+	if source.Excluded.ExcludedTaskCount != 1 ||
+		len(source.Excluded.ExcludedProjects) != 1 ||
+		source.Excluded.ExcludedProjects[0].ProjectName != "吃饭" {
+		t.Fatalf("excluded = %+v, want excluded life project", source.Excluded)
+	}
+}
+
+func TestWeeklySummaryExcludesUnassignedTasks(t *testing.T) {
+	source := buildWeeklySummarySourceData(
+		"2026-06-15",
+		"2026-06-21",
+		mustDateRange("2026-06-15", "2026-06-21"),
+		[]dailySummaryTaskRow{
+			unassignedTaskRow("2026-06-15", "completed", 30, 1800, "未绑定", ""),
+		},
+		[]dailySummarySessionRow{
+			unassignedSessionRow("2026-06-15", "2026-06-15T15:00:00", 1800),
+		},
+		mustDateRange("2026-06-08", "2026-06-14"),
+		nil,
+		nil,
+	)
+
+	if source.Week.TotalFocusMinutes != 0 || source.Week.TaskCount != 0 || len(source.Week.DailyTotals) != 0 {
+		t.Fatalf("week = %+v, want unassigned task excluded", source.Week)
+	}
+	if source.Excluded.UnassignedTaskCount != 1 || len(source.Warnings) == 0 {
+		t.Fatalf("excluded/warnings = %+v / %v, want unassigned metadata", source.Excluded, source.Warnings)
+	}
+}
+
 func TestWeeklySummaryPreviousWeekComparisonUnavailable(t *testing.T) {
 	source := buildWeeklySummarySourceData(
 		"2026-06-15",
@@ -305,6 +428,10 @@ func TestWeeklyPromptContainsRequiredChineseStructureAndRules(t *testing.T) {
 		"days_with_data >= 3：可以分析本周模式",
 		"previous_week_comparison.available = false 时，不要做上周对比",
 		"当前数据不足以判断",
+		"excluded 的内容只用于说明数据范围",
+		"不要把 excluded 项目计入学习总时长",
+		"不要把 life/break 类项目当作学习效率问题分析",
+		"unassigned_task_count",
 		"# 每周学习总结",
 		"## 1. 本周总览",
 		"## 2. 项目推进",
@@ -372,7 +499,7 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 	if err := json.Unmarshal(repo.created.SourceData, &raw); err != nil {
 		t.Fatalf("source_data is not an object: %v", err)
 	}
-	for _, key := range []string{"summary_type", "target_date", "data_quality", "today", "recent_context"} {
+	for _, key := range []string{"summary_type", "target_date", "data_quality", "today", "recent_context", "excluded"} {
 		if _, ok := raw[key]; !ok {
 			t.Fatalf("source_data is missing top-level key %q: %s", key, string(repo.created.SourceData))
 		}
@@ -468,7 +595,7 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 	if err := json.Unmarshal(repo.created.SourceData, &raw); err != nil {
 		t.Fatalf("weekly source_data is not an object: %v", err)
 	}
-	for _, key := range []string{"summary_type", "week_start", "week_end", "data_quality", "week", "previous_week_comparison"} {
+	for _, key := range []string{"summary_type", "week_start", "week_end", "data_quality", "week", "previous_week_comparison", "excluded"} {
 		if _, ok := raw[key]; !ok {
 			t.Fatalf("weekly source_data is missing top-level key %q: %s", key, string(repo.created.SourceData))
 		}
@@ -487,7 +614,10 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 func taskRow(date, project, status string, estimatedMinutes, sessionSeconds int, overrideSeconds *int, finishNote, finishDescription string) dailySummaryTaskRow {
 	row := dailySummaryTaskRow{
 		Date:              date,
+		ProjectID:         sql.NullInt64{Int64: int64(len(project) + 1), Valid: true},
 		ProjectName:       project,
+		ProjectCategory:   "study",
+		IncludeInSummary:  true,
 		Status:            status,
 		EstimatedMinutes:  estimatedMinutes,
 		SessionSeconds:    sessionSeconds,
@@ -500,17 +630,48 @@ func taskRow(date, project, status string, estimatedMinutes, sessionSeconds int,
 	return row
 }
 
+func excludedTaskRow(date, project, category, status string, estimatedMinutes, sessionSeconds int, finishNote, finishDescription string) dailySummaryTaskRow {
+	row := taskRow(date, project, status, estimatedMinutes, sessionSeconds, nil, finishNote, finishDescription)
+	row.ProjectCategory = category
+	row.IncludeInSummary = false
+	return row
+}
+
+func unassignedTaskRow(date, status string, estimatedMinutes, sessionSeconds int, finishNote, finishDescription string) dailySummaryTaskRow {
+	row := taskRow(date, "Unassigned", status, estimatedMinutes, sessionSeconds, nil, finishNote, finishDescription)
+	row.ProjectID = sql.NullInt64{}
+	row.IncludeInSummary = false
+	return row
+}
+
 func sessionRow(date, project, startedAt string, durationSeconds int) dailySummarySessionRow {
 	parsed, err := time.Parse("2006-01-02T15:04:05", startedAt)
 	if err != nil {
 		panic(err)
 	}
 	return dailySummarySessionRow{
-		Date:            date,
-		ProjectName:     project,
-		StartedAt:       parsed,
-		DurationSeconds: durationSeconds,
+		Date:             date,
+		ProjectID:        sql.NullInt64{Int64: int64(len(project) + 1), Valid: true},
+		ProjectName:      project,
+		ProjectCategory:  "study",
+		IncludeInSummary: true,
+		StartedAt:        parsed,
+		DurationSeconds:  durationSeconds,
 	}
+}
+
+func excludedSessionRow(date, project, category, startedAt string, durationSeconds int) dailySummarySessionRow {
+	row := sessionRow(date, project, startedAt, durationSeconds)
+	row.ProjectCategory = category
+	row.IncludeInSummary = false
+	return row
+}
+
+func unassignedSessionRow(date, startedAt string, durationSeconds int) dailySummarySessionRow {
+	row := sessionRow(date, "Unassigned", startedAt, durationSeconds)
+	row.ProjectID = sql.NullInt64{}
+	row.IncludeInSummary = false
+	return row
 }
 
 func mustDateRange(startDate, endDate string) []string {

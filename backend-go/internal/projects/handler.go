@@ -37,6 +37,13 @@ func (h *Handler) CreateProject(c *gin.Context) {
 
 	id, err := h.service.CreateProject(req)
 	if err != nil {
+		if errors.Is(err, ErrInvalidProjectCategory) {
+			c.JSON(400, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "create project failed",
@@ -126,6 +133,13 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if err := h.service.UpdateProject(id, req); err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
 			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		if errors.Is(err, ErrInvalidProjectCategory) {
+			c.JSON(400, gin.H{
 				"status":  "error",
 				"message": err.Error(),
 			})

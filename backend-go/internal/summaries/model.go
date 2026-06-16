@@ -43,6 +43,8 @@ type DailySummarySourceData struct {
 	DataQuality   DailyDataQuality    `json:"data_quality"`
 	Today         DailySummaryToday   `json:"today"`
 	RecentContext DailySummaryContext `json:"recent_context"`
+	Excluded      SummaryExcluded     `json:"excluded"`
+	Warnings      []string            `json:"warnings,omitempty"`
 }
 
 type DailyDataQuality struct {
@@ -107,6 +109,8 @@ type WeeklySummarySourceData struct {
 	DataQuality            WeeklyDataQuality      `json:"data_quality"`
 	Week                   WeeklySummaryWeek      `json:"week"`
 	PreviousWeekComparison PreviousWeekComparison `json:"previous_week_comparison"`
+	Excluded               SummaryExcluded        `json:"excluded"`
+	Warnings               []string               `json:"warnings,omitempty"`
 }
 
 type WeeklyDataQuality struct {
@@ -163,5 +167,19 @@ type PreviousWeekComparison struct {
 
 type PreviousWeekMainProject struct {
 	ProjectName  string `json:"project_name"`
+	TotalMinutes int    `json:"total_minutes"`
+}
+
+type SummaryExcluded struct {
+	ExcludedTaskCount      int                      `json:"excluded_task_count"`
+	ExcludedTotalMinutes   int                      `json:"excluded_total_minutes"`
+	ExcludedProjects       []SummaryExcludedProject `json:"excluded_projects"`
+	UnassignedTaskCount    int                      `json:"unassigned_task_count"`
+	UnassignedTotalMinutes int                      `json:"unassigned_total_minutes"`
+}
+
+type SummaryExcludedProject struct {
+	ProjectName  string `json:"project_name"`
+	Category     string `json:"category"`
 	TotalMinutes int    `json:"total_minutes"`
 }

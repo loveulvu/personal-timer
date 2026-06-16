@@ -50,18 +50,22 @@ type CreateResponse struct {
 }
 
 type Project struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IsFixed     bool      `json:"is_fixed"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	IsFixed          bool      `json:"is_fixed"`
+	Category         string    `json:"category"`
+	IncludeInSummary bool      `json:"include_in_summary"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type ProjectInput struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsFixed     bool   `json:"is_fixed"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	IsFixed          bool   `json:"is_fixed"`
+	Category         string `json:"category"`
+	IncludeInSummary bool   `json:"include_in_summary"`
 }
 
 type DailyTaskStat struct {
