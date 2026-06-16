@@ -56,6 +56,7 @@ type DailySummaryToday struct {
 	TotalFocusMinutes int                     `json:"total_focus_minutes"`
 	CompletedTasks    int                     `json:"completed_tasks"`
 	TaskCount         int                     `json:"task_count"`
+	FirstStartTime    string                  `json:"first_start_time"`
 	ProjectBreakdown  []DailyProjectBreakdown `json:"project_breakdown"`
 	TimeDistribution  DailyTimeDistribution   `json:"time_distribution"`
 }
@@ -97,4 +98,70 @@ type DailyProjectPattern struct {
 	AvgActualMinutes    int     `json:"avg_actual_minutes"`
 	AvgEstimatedMinutes int     `json:"avg_estimated_minutes"`
 	OverrunRate         float64 `json:"overrun_rate"`
+}
+
+type WeeklySummarySourceData struct {
+	SummaryType            string                 `json:"summary_type"`
+	WeekStart              string                 `json:"week_start"`
+	WeekEnd                string                 `json:"week_end"`
+	DataQuality            WeeklyDataQuality      `json:"data_quality"`
+	Week                   WeeklySummaryWeek      `json:"week"`
+	PreviousWeekComparison PreviousWeekComparison `json:"previous_week_comparison"`
+}
+
+type WeeklyDataQuality struct {
+	DaysWithData    int  `json:"days_with_data"`
+	CanAnalyzeTrend bool `json:"can_analyze_trend"`
+	HasPreviousWeek bool `json:"has_previous_week"`
+}
+
+type WeeklySummaryWeek struct {
+	TotalFocusMinutes int                      `json:"total_focus_minutes"`
+	CompletedTasks    int                      `json:"completed_tasks"`
+	TaskCount         int                      `json:"task_count"`
+	DailyTotals       []WeeklyDailyTotal       `json:"daily_totals"`
+	ProjectBreakdown  []WeeklyProjectBreakdown `json:"project_breakdown"`
+	TimeDistribution  DailyTimeDistribution    `json:"time_distribution"`
+	StartTimePatterns []WeeklyStartTimePattern `json:"start_time_patterns"`
+	RepeatedNotes     []string                 `json:"repeated_notes"`
+}
+
+type WeeklyDailyTotal struct {
+	Date              string `json:"date"`
+	TotalFocusMinutes int    `json:"total_focus_minutes"`
+	CompletedTasks    int    `json:"completed_tasks"`
+	TaskCount         int    `json:"task_count"`
+	FirstStartTime    string `json:"first_start_time"`
+	MainProject       string `json:"main_project"`
+}
+
+type WeeklyProjectBreakdown struct {
+	ProjectName      string  `json:"project_name"`
+	TotalMinutes     int     `json:"total_minutes"`
+	ActiveDays       int     `json:"active_days"`
+	TaskCount        int     `json:"task_count"`
+	CompletedCount   int     `json:"completed_count"`
+	EstimatedMinutes int     `json:"estimated_minutes"`
+	ActualMinutes    int     `json:"actual_minutes"`
+	OverrunMinutes   int     `json:"overrun_minutes"`
+	OverrunRate      float64 `json:"overrun_rate"`
+}
+
+type WeeklyStartTimePattern struct {
+	ProjectName     string   `json:"project_name"`
+	ActiveDays      int      `json:"active_days"`
+	FirstStartTimes []string `json:"first_start_times"`
+	AvgStartTime    string   `json:"avg_start_time"`
+}
+
+type PreviousWeekComparison struct {
+	Available         bool                      `json:"available"`
+	TotalFocusMinutes int                       `json:"total_focus_minutes"`
+	DaysWithData      int                       `json:"days_with_data"`
+	MainProjects      []PreviousWeekMainProject `json:"main_projects"`
+}
+
+type PreviousWeekMainProject struct {
+	ProjectName  string `json:"project_name"`
+	TotalMinutes int    `json:"total_minutes"`
 }
