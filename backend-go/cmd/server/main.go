@@ -30,6 +30,7 @@ func main() {
 	api.GET("/version", handler.Version)
 	api.GET("/config/status", handler.ConfigStatus(mysqlDB))
 	api.POST("/llm/test", handler.TestLLM)
+	api.POST("/llm/test-summary", handler.TestLLMSummary)
 	projectRepo := projects.NewRepository(mysqlDB)
 	projectService := projects.NewService(projectRepo)
 	projectHandler := projects.NewHandler(projectService)
