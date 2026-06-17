@@ -12,6 +12,7 @@ type GeneratedSummary struct {
 	EndDate     string          `json:"end_date"`
 	Content     string          `json:"content"`
 	SourceData  json.RawMessage `json:"source_data,omitempty"`
+	ActionItems json.RawMessage `json:"action_items,omitempty"`
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
@@ -21,6 +22,17 @@ type CreateSummaryInput struct {
 	EndDate     string
 	Content     string
 	SourceData  json.RawMessage
+	ActionItems json.RawMessage
+}
+
+type SummaryActionItem struct {
+	Type             string `json:"type"`
+	Priority         string `json:"priority"`
+	Title            string `json:"title"`
+	Reason           string `json:"reason"`
+	SuggestedProject string `json:"suggested_project,omitempty"`
+	SuggestedMinutes int    `json:"suggested_minutes,omitempty"`
+	Source           string `json:"source,omitempty"`
 }
 
 type GenerateDailySummaryRequest struct {

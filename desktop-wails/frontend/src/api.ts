@@ -130,6 +130,7 @@ export type Summary = {
   end_date: string
   content: string
   source_data?: unknown
+  action_items?: unknown
   created_at: string
 }
 

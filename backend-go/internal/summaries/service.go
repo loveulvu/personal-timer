@@ -91,6 +91,7 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
 	}
+	actionItems := marshalSummaryActionItems("daily", BuildDailyActionItems(dailyContext))
 
 	id, err := s.repo.CreateSummary(ctx, CreateSummaryInput{
 		SummaryType: "daily",
@@ -98,6 +99,7 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		EndDate:     date,
 		Content:     content,
 		SourceData:  sourceData,
+		ActionItems: actionItems,
 	})
 	if err != nil {
 		if errors.Is(err, ErrSummaryAlreadyExists) {
@@ -155,6 +157,7 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
 	}
+	actionItems := marshalSummaryActionItems("weekly", BuildWeeklyActionItems(weeklyContext))
 
 	id, err := s.repo.CreateSummary(ctx, CreateSummaryInput{
 		SummaryType: "weekly",
@@ -162,6 +165,7 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 		EndDate:     endDate,
 		Content:     content,
 		SourceData:  sourceData,
+		ActionItems: actionItems,
 	})
 	if err != nil {
 		if errors.Is(err, ErrSummaryAlreadyExists) {
@@ -183,6 +187,15 @@ func (s *Service) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSumma
 
 func (s *Service) DeleteSummary(ctx context.Context, id int64) error {
 	return s.repo.DeleteSummary(ctx, id)
+}
+
+func marshalSummaryActionItems(summaryType string, items []SummaryActionItem) json.RawMessage {
+	data, err := json.Marshal(items)
+	if err != nil {
+		log.Printf("summary action_items marshal failed: summary_type=%s error=%v", summaryType, err)
+		return json.RawMessage("[]")
+	}
+	return data
 }
 
 func (s *Service) generateSummaryWithLog(ctx context.Context, summaryType, prompt string, sourceDataBytes int) (string, error) {

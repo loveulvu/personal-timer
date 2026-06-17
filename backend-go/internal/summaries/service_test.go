@@ -480,6 +480,13 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 	if len(repo.created.SourceData) == 0 {
 		t.Fatal("created source_data is empty")
 	}
+	if len(repo.created.ActionItems) == 0 {
+		t.Fatal("created action_items is empty")
+	}
+	var actionItems []SummaryActionItem
+	if err := json.Unmarshal(repo.created.ActionItems, &actionItems); err != nil {
+		t.Fatalf("action_items is not valid JSON: %v", err)
+	}
 	if !strings.Contains(llmPrompt, string(repo.created.SourceData)) {
 		t.Fatal("persisted source_data does not match the structured JSON sent to the LLM")
 	}
@@ -564,6 +571,13 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 	}
 	if len(repo.created.SourceData) == 0 {
 		t.Fatal("created weekly source_data is empty")
+	}
+	if len(repo.created.ActionItems) == 0 {
+		t.Fatal("created weekly action_items is empty")
+	}
+	var actionItems []SummaryActionItem
+	if err := json.Unmarshal(repo.created.ActionItems, &actionItems); err != nil {
+		t.Fatalf("weekly action_items is not valid JSON: %v", err)
 	}
 	if !strings.Contains(llmPrompt, string(repo.created.SourceData)) {
 		t.Fatal("persisted weekly source_data does not match the structured JSON sent to the LLM")

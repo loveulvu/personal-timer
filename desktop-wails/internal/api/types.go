@@ -147,6 +147,7 @@ type Summary struct {
 	EndDate     string `json:"end_date"`
 	Content     string `json:"content"`
 	SourceData  any    `json:"source_data,omitempty"`
+	ActionItems any    `json:"action_items,omitempty"`
 	CreatedAt   string `json:"created_at"`
 }
 

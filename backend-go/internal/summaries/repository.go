@@ -49,8 +49,8 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) CreateSummary(ctx context.Context, input CreateSummaryInput) (int64, error) {
 	query := `
-		INSERT INTO generated_summaries (summary_type, start_date, end_date, content, source_data)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO generated_summaries (summary_type, start_date, end_date, content, source_data, action_items)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 
 	result, err := r.db.ExecContext(
@@ -61,6 +61,7 @@ func (r *Repository) CreateSummary(ctx context.Context, input CreateSummaryInput
 		input.EndDate,
 		input.Content,
 		input.SourceData,
+		input.ActionItems,
 	)
 	if err != nil {
 		if isDuplicateKey(err) {
@@ -256,6 +257,7 @@ func (r *Repository) ListSummaries(ctx context.Context, summaryType string) ([]G
 			DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
 			DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
 			content,
+			action_items,
 			created_at
 		FROM generated_summaries
 	`
@@ -275,15 +277,20 @@ func (r *Repository) ListSummaries(ctx context.Context, summaryType string) ([]G
 	summaries := make([]GeneratedSummary, 0)
 	for rows.Next() {
 		var summary GeneratedSummary
+		var actionItems sql.NullString
 		if err := rows.Scan(
 			&summary.ID,
 			&summary.SummaryType,
 			&summary.StartDate,
 			&summary.EndDate,
 			&summary.Content,
+			&actionItems,
 			&summary.CreatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if actionItems.Valid {
+			summary.ActionItems = json.RawMessage(actionItems.String)
 		}
 		summaries = append(summaries, summary)
 	}
@@ -304,6 +311,7 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 			DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
 			content,
 			source_data,
+			action_items,
 			created_at
 		FROM generated_summaries
 		WHERE id = ?
@@ -311,6 +319,7 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 
 	var summary GeneratedSummary
 	var sourceData sql.NullString
+	var actionItems sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&summary.ID,
 		&summary.SummaryType,
@@ -318,6 +327,7 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 		&summary.EndDate,
 		&summary.Content,
 		&sourceData,
+		&actionItems,
 		&summary.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -328,6 +338,9 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 	}
 	if sourceData.Valid {
 		summary.SourceData = json.RawMessage(sourceData.String)
+	}
+	if actionItems.Valid {
+		summary.ActionItems = json.RawMessage(actionItems.String)
 	}
 
 	return &summary, nil

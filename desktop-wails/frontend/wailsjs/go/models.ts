@@ -334,6 +334,7 @@ export namespace api {
 	    end_date: string;
 	    content: string;
 	    source_data?: any;
+	    action_items?: any;
 	    created_at: string;
 	
 	    static createFrom(source: any = {}) {
@@ -348,6 +349,7 @@ export namespace api {
 	        this.end_date = source["end_date"];
 	        this.content = source["content"];
 	        this.source_data = source["source_data"];
+	        this.action_items = source["action_items"];
 	        this.created_at = source["created_at"];
 	    }
 	}
