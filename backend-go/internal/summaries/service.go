@@ -86,12 +86,23 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		return nil, err
 	}
 
-	dailyPrompt := buildDailyPrompt(string(sourceData))
-	content, err := s.generateSummaryWithLog(ctx, "daily", dailyPrompt, len(sourceData))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
+	actionItemList := BuildDailyActionItems(dailyContext)
+	var content string
+	if isEmptyIncludedDailyData(dailyContext) {
+		content = buildEmptyDailySummaryFallback(dailyContext, actionItemList)
+		log.Printf(
+			"LLM summary generation skipped: summary_type=daily skipped_llm=true reason=empty_included_daily_data source_data_bytes=%d action_items_count=%d",
+			len(sourceData),
+			len(actionItemList),
+		)
+	} else {
+		dailyPrompt := buildDailyPrompt(string(sourceData))
+		content, err = s.generateSummaryWithLog(ctx, "daily", dailyPrompt, len(sourceData))
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrLLMGenerationFailed, err)
+		}
 	}
-	actionItems := marshalSummaryActionItems("daily", BuildDailyActionItems(dailyContext))
+	actionItems := marshalSummaryActionItems("daily", actionItemList)
 
 	id, err := s.repo.CreateSummary(ctx, CreateSummaryInput{
 		SummaryType: "daily",
@@ -109,6 +120,52 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 	}
 
 	return &GenerateSummaryResult{SummaryID: id, Content: content}, nil
+}
+
+func isEmptyIncludedDailyData(source DailySummarySourceData) bool {
+	return source.Today.TotalFocusMinutes == 0 &&
+		source.Today.TaskCount == 0 &&
+		len(source.Today.ProjectBreakdown) == 0
+}
+
+func buildEmptyDailySummaryFallback(source DailySummarySourceData, actionItems []SummaryActionItem) string {
+	var b strings.Builder
+	b.WriteString("# 每日学习总结\n\n")
+	b.WriteString("## 1. 今日概览\n\n")
+	b.WriteString("今日没有记录纳入学习统计的专注任务。\n")
+	if source.Excluded.ExcludedTotalMinutes > 0 {
+		b.WriteString("系统检测到存在被排除的非学习记录，例如生活类或休息类任务，这些记录未计入学习总结。\n")
+	}
+
+	b.WriteString("\n## 2. 时间分布\n\n")
+	b.WriteString("今日没有学习专注时长，无法分析时间段分布。\n")
+	b.WriteString("\n## 3. 项目推进\n\n")
+	b.WriteString("今日没有纳入学习统计的项目推进记录。\n")
+	b.WriteString("\n## 4. 与近期记录的对比\n\n")
+	if source.DataQuality.ComparisonDaysWithData > 0 {
+		b.WriteString("近期有历史学习记录，但目标日期为空白。今天未形成纳入学习统计的学习记录。\n")
+	} else {
+		b.WriteString("当前历史样本不足，无法对比。\n")
+	}
+
+	b.WriteString("\n## 5. 发现的问题\n\n")
+	b.WriteString("- 今天没有纳入学习统计的数据。\n")
+	b.WriteString("- 可能是未学习、未使用计时器，或只记录了生活类任务。\n")
+	if source.Excluded.UnassignedTaskCount > 0 {
+		b.WriteString("- 存在未绑定任务被排除，建议补充项目归属。\n")
+	}
+
+	b.WriteString("\n## 6. 明日建议\n\n")
+	if len(actionItems) == 0 {
+		b.WriteString("- 明天先记录一段明确的学习专注任务。\n")
+		return b.String()
+	}
+	for _, item := range actionItems {
+		b.WriteString("- ")
+		b.WriteString(item.Title)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate string) (*GenerateSummaryResult, error) {

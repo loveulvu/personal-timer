@@ -464,10 +464,11 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 		},
 	}
 	var llmPrompt string
+	llmCalls := 0
 	service := &Service{
 		repo:         repo,
 		statsService: fakeWeeklyStatsProvider{},
-		llmClient:    fakeLLM{content: "ok", prompt: &llmPrompt},
+		llmClient:    fakeLLM{content: "ok", prompt: &llmPrompt, calls: &llmCalls},
 	}
 
 	result, err := service.GenerateDailySummary(context.Background(), "2026-06-18")
@@ -482,6 +483,9 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 	}
 	if len(repo.created.ActionItems) == 0 {
 		t.Fatal("created action_items is empty")
+	}
+	if llmCalls != 1 {
+		t.Fatalf("llm calls = %d, want 1", llmCalls)
 	}
 	var actionItems []SummaryActionItem
 	if err := json.Unmarshal(repo.created.ActionItems, &actionItems); err != nil {
@@ -535,6 +539,83 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 		source.Today.TotalFocusMinutes == 0 ||
 		len(source.RecentContext.RecentActiveDays) != 2 {
 		t.Fatalf("persisted source_data missing required daily context: %+v", source)
+	}
+}
+
+func TestGenerateDailySummaryEmptyIncludedDataSkipsLLMAndPersistsFallback(t *testing.T) {
+	repo := &fakeSummaryRepo{
+		recentDates: []string{"2026-06-15"},
+		tasks: []dailySummaryTaskRow{
+			taskRow("2026-06-15", "Go", "completed", 30, 1800, nil, "map slice", "channel context"),
+		},
+	}
+	llmCalls := 0
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "should not be used", calls: &llmCalls},
+	}
+
+	result, err := service.GenerateDailySummary(context.Background(), "2026-06-18")
+	if err != nil {
+		t.Fatalf("GenerateDailySummary returned error: %v", err)
+	}
+	if result.SummaryID != 42 || repo.created.SummaryType != "daily" {
+		t.Fatalf("created summary = id %d input %+v, want persisted daily summary", result.SummaryID, repo.created)
+	}
+	if llmCalls != 0 {
+		t.Fatalf("llm calls = %d, want 0", llmCalls)
+	}
+	assertEmptyDailyFallbackContent(t, repo.created.Content)
+	if !strings.Contains(repo.created.Content, "今日没有记录纳入学习统计的专注任务") {
+		t.Fatalf("fallback content missing empty-data message: %s", repo.created.Content)
+	}
+	if len(repo.created.SourceData) == 0 {
+		t.Fatal("created source_data is empty")
+	}
+
+	var actionItems []SummaryActionItem
+	if err := json.Unmarshal(repo.created.ActionItems, &actionItems); err != nil {
+		t.Fatalf("action_items is not valid JSON: %v", err)
+	}
+	if countActionItems(actionItems, "schedule", "high") < 2 {
+		t.Fatalf("action_items = %+v, want missing fixed projects as schedule high", actionItems)
+	}
+}
+
+func TestGenerateDailySummaryExcludedDataDoesNotBlockFallback(t *testing.T) {
+	repo := &fakeSummaryRepo{
+		tasks: []dailySummaryTaskRow{
+			excludedTaskRow("2026-06-18", "吃饭", "life", "completed", 0, 5040, "", ""),
+		},
+		sessions: []dailySummarySessionRow{
+			excludedSessionRow("2026-06-18", "吃饭", "life", "2026-06-18T12:00:00", 5040),
+		},
+	}
+	llmCalls := 0
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "should not be used", calls: &llmCalls},
+	}
+
+	_, err := service.GenerateDailySummary(context.Background(), "2026-06-18")
+	if err != nil {
+		t.Fatalf("GenerateDailySummary returned error: %v", err)
+	}
+	if llmCalls != 0 {
+		t.Fatalf("llm calls = %d, want 0", llmCalls)
+	}
+	if !strings.Contains(repo.created.Content, "非学习记录") || !strings.Contains(repo.created.Content, "未计入学习总结") {
+		t.Fatalf("fallback content missing excluded-data note: %s", repo.created.Content)
+	}
+
+	var source DailySummarySourceData
+	if err := json.Unmarshal(repo.created.SourceData, &source); err != nil {
+		t.Fatalf("source_data is not DailySummarySourceData JSON: %v", err)
+	}
+	if source.Excluded.ExcludedTotalMinutes == 0 || !isEmptyIncludedDailyData(source) {
+		t.Fatalf("source = %+v, want excluded minutes with empty included today", source)
 	}
 }
 
@@ -623,6 +704,33 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 			t.Fatalf("weekly source_data.week is missing key %q: %s", key, string(repo.created.SourceData))
 		}
 	}
+}
+
+func assertEmptyDailyFallbackContent(t *testing.T, content string) {
+	t.Helper()
+	for _, text := range []string{
+		"# 每日学习总结",
+		"## 1. 今日概览",
+		"## 2. 时间分布",
+		"## 3. 项目推进",
+		"## 4. 与近期记录的对比",
+		"## 5. 发现的问题",
+		"## 6. 明日建议",
+	} {
+		if !strings.Contains(content, text) {
+			t.Fatalf("fallback content missing %q: %s", text, content)
+		}
+	}
+}
+
+func countActionItems(items []SummaryActionItem, itemType, priority string) int {
+	count := 0
+	for _, item := range items {
+		if item.Type == itemType && item.Priority == priority {
+			count++
+		}
+	}
+	return count
 }
 
 func taskRow(date, project, status string, estimatedMinutes, sessionSeconds int, overrideSeconds *int, finishNote, finishDescription string) dailySummaryTaskRow {
@@ -780,9 +888,13 @@ func (fakeWeeklyStatsProvider) GetWeeklyStats(startDate, endDate string) (*stats
 type fakeLLM struct {
 	content string
 	prompt  *string
+	calls   *int
 }
 
 func (f fakeLLM) GenerateSummary(ctx context.Context, prompt string) (string, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
 	if f.prompt != nil {
 		*f.prompt = prompt
 	}
