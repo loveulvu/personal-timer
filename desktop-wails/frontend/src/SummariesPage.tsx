@@ -1,8 +1,8 @@
 import { DeleteOutlined, EyeOutlined, ExperimentOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, DatePicker, Descriptions, Modal, Select, Space, Table, Typography, message } from 'antd'
+import { Alert, Button, Card, DatePicker, Descriptions, Modal, Select, Space, Table, Tag, Typography, message } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
-import { api, GenerateSummaryResult, Summary } from './api'
+import { api, GenerateSummaryResult, Summary, SummaryActionItem } from './api'
 import { StatusTag } from './components/StatusTag'
 import { errorMessage, valueLabel } from './utils/labels'
 
@@ -75,7 +75,7 @@ export function SummariesPage({ connected }: Props) {
       <Card title="生成每周总结"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>生成每周总结</Button></Space></Card>
     </div>
 
-    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph></Card>}
+    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph><ActionItems items={generated.action_items} /></Card>}
 
     <Card title="总结列表" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: '全部' }, { value: 'daily', label: '每日' }, { value: 'weekly', label: '每周' }]} />}>
       <Table rowKey="id" loading={loading} dataSource={summaries} columns={columns} pagination={{ pageSize: 8 }} />
@@ -91,10 +91,48 @@ export function SummariesPage({ connected }: Props) {
         ]} />
         <Typography.Title level={5}>内容</Typography.Title>
         <pre className="content-block">{detail.content}</pre>
+        <ActionItems items={detail.action_items} />
         {detail.source_data !== undefined && <><Typography.Title level={5}>源数据</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
       </>}
     </Modal>
   </div>
+}
+
+function ActionItems({ items }: { items?: SummaryActionItem[] | null }) {
+  const actionItems = normalizeActionItems(items)
+  if (actionItems.length === 0) return null
+  return <div>
+    <Typography.Title level={5}>行动建议</Typography.Title>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {actionItems.map((item, index) => <div key={`${item.type}-${item.title}-${index}`}>
+        <Space wrap>
+          <Tag>{priorityLabel(item.priority)}</Tag>
+          <Tag>{typeLabel(item.type)}</Tag>
+          <Typography.Text strong>{item.title}</Typography.Text>
+        </Space>
+        {item.reason && <Typography.Paragraph style={{ margin: '6px 0 0' }}>原因：{item.reason}</Typography.Paragraph>}
+        {(item.suggested_project || item.suggested_minutes) && <Typography.Text type="secondary">
+          建议：{[item.suggested_project, item.suggested_minutes ? `${item.suggested_minutes} 分钟` : ''].filter(Boolean).join('，')}
+        </Typography.Text>}
+      </div>)}
+    </Space>
+  </div>
+}
+
+function normalizeActionItems(items: unknown): SummaryActionItem[] {
+  if (Array.isArray(items)) return items.filter((item): item is SummaryActionItem => Boolean(item && typeof item === 'object' && 'title' in item))
+  if (typeof items === 'string') {
+    try { return normalizeActionItems(JSON.parse(items)) } catch { return [] }
+  }
+  return []
+}
+
+function priorityLabel(priority: string) {
+  return ({ high: '高优先级', medium: '中优先级', low: '低优先级' } as Record<string, string>)[priority] ?? priority
+}
+
+function typeLabel(type: string) {
+  return ({ schedule: '安排任务', consistency: '保持连续性', estimation: '估时校准', split_task: '拆分任务', focus_topic: '聚焦复习', cleanup: '清理数据' } as Record<string, string>)[type] ?? type
 }
 
 function preview(content: string) { return content.length > 140 ? `${content.slice(0, 140)}...` : content }

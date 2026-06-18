@@ -45,8 +45,9 @@ type GenerateWeeklySummaryRequest struct {
 }
 
 type GenerateSummaryResult struct {
-	SummaryID int64  `json:"summary_id"`
-	Content   string `json:"content"`
+	SummaryID   int64           `json:"summary_id"`
+	Content     string          `json:"content"`
+	ActionItems json.RawMessage `json:"action_items,omitempty"`
 }
 
 type DailySummarySourceData struct {

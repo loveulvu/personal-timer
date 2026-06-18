@@ -184,6 +184,7 @@ export namespace api {
 	export class GenerateSummaryResult {
 	    summary_id: number;
 	    content: string;
+	    action_items?: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new GenerateSummaryResult(source);
@@ -193,6 +194,7 @@ export namespace api {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.summary_id = source["summary_id"];
 	        this.content = source["content"];
+	        this.action_items = source["action_items"];
 	    }
 	}
 	export class LLMTestResponse {
@@ -460,4 +462,3 @@ export namespace api {
 	}
 
 }
-

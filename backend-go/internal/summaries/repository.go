@@ -290,7 +290,7 @@ func (r *Repository) ListSummaries(ctx context.Context, summaryType string) ([]G
 			return nil, err
 		}
 		if actionItems.Valid {
-			summary.ActionItems = json.RawMessage(actionItems.String)
+			summary.ActionItems = rawJSONOrNil(actionItems.String)
 		}
 		summaries = append(summaries, summary)
 	}
@@ -340,10 +340,17 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 		summary.SourceData = json.RawMessage(sourceData.String)
 	}
 	if actionItems.Valid {
-		summary.ActionItems = json.RawMessage(actionItems.String)
+		summary.ActionItems = rawJSONOrNil(actionItems.String)
 	}
 
 	return &summary, nil
+}
+
+func rawJSONOrNil(value string) json.RawMessage {
+	if !json.Valid([]byte(value)) {
+		return nil
+	}
+	return json.RawMessage(value)
 }
 
 func (r *Repository) DeleteSummary(ctx context.Context, id int64) error {

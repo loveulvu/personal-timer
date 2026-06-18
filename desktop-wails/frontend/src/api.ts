@@ -108,9 +108,20 @@ export type WeeklyStats = {
   projects: WeeklyProjectStat[]
 }
 
+export type SummaryActionItem = {
+  type: string
+  priority: string
+  title: string
+  reason?: string
+  suggested_project?: string
+  suggested_minutes?: number
+  source?: string
+}
+
 export type GenerateSummaryResult = {
   summary_id: number
   content: string
+  action_items?: SummaryActionItem[] | null
 }
 
 export type FinishTaskRequest = {
@@ -130,7 +141,7 @@ export type Summary = {
   end_date: string
   content: string
   source_data?: unknown
-  action_items?: unknown
+  action_items?: SummaryActionItem[] | null
   created_at: string
 }
 

@@ -478,6 +478,9 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 	if result.SummaryID != 42 {
 		t.Fatalf("summary id = %d, want 42", result.SummaryID)
 	}
+	if len(result.ActionItems) == 0 {
+		t.Fatal("generated daily result action_items is empty")
+	}
 	if len(repo.created.SourceData) == 0 {
 		t.Fatal("created source_data is empty")
 	}
@@ -646,6 +649,9 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 	}
 	if result.SummaryID != 42 {
 		t.Fatalf("summary id = %d, want 42", result.SummaryID)
+	}
+	if len(result.ActionItems) == 0 {
+		t.Fatal("generated weekly result action_items is empty")
 	}
 	if repo.created.SummaryType != "weekly" || repo.created.StartDate != "2026-06-15" || repo.created.EndDate != "2026-06-21" {
 		t.Fatalf("unexpected created summary identity: %+v", repo.created)

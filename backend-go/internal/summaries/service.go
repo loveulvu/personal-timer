@@ -119,7 +119,7 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
 
-	return &GenerateSummaryResult{SummaryID: id, Content: content}, nil
+	return &GenerateSummaryResult{SummaryID: id, Content: content, ActionItems: actionItems}, nil
 }
 
 func isEmptyIncludedDailyData(source DailySummarySourceData) bool {
@@ -231,7 +231,7 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
 
-	return &GenerateSummaryResult{SummaryID: id, Content: content}, nil
+	return &GenerateSummaryResult{SummaryID: id, Content: content, ActionItems: actionItems}, nil
 }
 
 func (s *Service) ListSummaries(ctx context.Context, summaryType string) ([]GeneratedSummary, error) {

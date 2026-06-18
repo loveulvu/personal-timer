@@ -136,8 +136,9 @@ type UpdateCompletedTaskRequest struct {
 }
 
 type GenerateSummaryResult struct {
-	SummaryID int64  `json:"summary_id"`
-	Content   string `json:"content"`
+	SummaryID   int64  `json:"summary_id"`
+	Content     string `json:"content"`
+	ActionItems any    `json:"action_items,omitempty"`
 }
 
 type Summary struct {
