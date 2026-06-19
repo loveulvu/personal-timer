@@ -652,7 +652,7 @@ actual_seconds = daily_tasks.actual_seconds_override
 
 ## Memory Foundation V1
 
-当前已新增长期记忆基础表，但尚未接入 Summary 生成流程，也没有 memory recall、Agent、RAG 或向量库。
+当前已新增长期记忆基础表，并已接入 Summary 生成前的 memory recall；仍没有 Agent、RAG 或向量库。
 
 ### study_memories
 
@@ -683,15 +683,27 @@ actual_seconds = daily_tasks.actual_seconds_override
 - `excerpt`：证据摘录。
 - `weight`：证据权重。
 
-当前不会影响 Daily / Weekly Summary 生成；后续 memory recall 需要单独设计和接入。
+当前会作为 `relevant_memories` 进入 Daily / Weekly Summary 的 `source_data`；recall 失败不影响 Summary 生成。
 
 ### Memory Extraction V1
 
-当前已支持手动触发确定性规则提取 memory：
+当前已支持手动触发和 Summary 生成后自动触发的确定性规则提取 memory：
 
 - 来源：`generated_summaries.source_data`，`action_items` 仅安全解析，不作为主要记忆来源。
 - 支持类型：`repeated_blocker`、`estimate_bias`、`time_pattern`。
 - 写入：`study_memories` 和 `study_memory_evidence`。
 - 幂等：同一个 summary 对同一条 active memory 只添加一次 evidence，不重复增加 `support_count`。
+- 副流程：Daily / Weekly Summary 保存成功后自动提取；提取失败只记录日志，不回滚 `generated_summaries`。
 
-当前仍然没有 LLM memory extraction、memory recall、Summary prompt 接入、UI、Agent、RAG 或向量库。
+当前仍然没有 LLM memory extraction、memory 管理 UI、Agent、RAG 或向量库。
+
+### Memory Recall V1
+
+Daily / Weekly Summary 生成前会从 MySQL `study_memories` 读取 active memories，并把精简后的 `relevant_memories` 写入 `generated_summaries.source_data`。
+
+- 召回类型：`repeated_blocker`、`estimate_bias`、`time_pattern`
+- 召回范围：global/topic memories，以及当前 Summary 涉及项目的 project memories。
+- 使用方式：LLM prompt 可以看到 `source_data.relevant_memories`，但 memory 只作为参考，不作为绝对事实。
+- 失败策略：recall 失败只写入 warning 并记录日志，不影响 Summary 生成。
+
+当前仍然没有 LLM memory extraction、Agent、RAG、向量库、UI 或 feedback；memory extraction 仍由确定性规则写入。

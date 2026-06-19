@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"personal/internal/llm"
+	"personal/internal/memories"
 	"personal/internal/stats"
 )
 
@@ -49,10 +50,20 @@ type weeklyStatsProvider interface {
 	GetWeeklyStats(startDate, endDate string) (*stats.WeeklyStats, error)
 }
 
+type memoryExtractor interface {
+	ExtractFromSummary(ctx context.Context, summaryID int64) (memories.ExtractionResult, error)
+}
+
+type memoryRecallProvider interface {
+	RecallRelevantMemories(ctx context.Context, input memories.RecallInput) ([]memories.StudyMemory, error)
+}
+
 type Service struct {
-	repo         summaryRepository
-	statsService weeklyStatsProvider
-	llmClient    llm.Client
+	repo            summaryRepository
+	statsService    weeklyStatsProvider
+	llmClient       llm.Client
+	memoryExtractor memoryExtractor
+	memoryRecall    memoryRecallProvider
 }
 
 func NewService(repo *Repository, statsService *stats.Service, llmClient llm.Client) *Service {
@@ -61,6 +72,14 @@ func NewService(repo *Repository, statsService *stats.Service, llmClient llm.Cli
 		statsService: statsService,
 		llmClient:    llmClient,
 	}
+}
+
+func (s *Service) SetMemoryExtractor(extractor memoryExtractor) {
+	s.memoryExtractor = extractor
+}
+
+func (s *Service) SetMemoryRecall(recall memoryRecallProvider) {
+	s.memoryRecall = recall
 }
 
 func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*GenerateSummaryResult, error) {
@@ -88,6 +107,7 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 	}
 
 	dailyContext := buildDailySummarySourceData(date, recentDates, tasks, sessions)
+	s.recallDailyMemories(ctx, &dailyContext)
 	sourceData, err := json.Marshal(dailyContext)
 	if err != nil {
 		return nil, err
@@ -125,6 +145,7 @@ func (s *Service) GenerateDailySummary(ctx context.Context, date string) (*Gener
 		}
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
+	s.extractMemories(ctx, id, "daily")
 
 	return &GenerateSummaryResult{SummaryID: id, Content: content, ActionItems: actionItems}, nil
 }
@@ -211,6 +232,7 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 	}
 
 	weeklyContext := buildWeeklySummarySourceData(startDate, endDate, weekDates, weekTasks, weekSessions, previousWeekDates, previousWeekTasks, previousWeekSessions)
+	s.recallWeeklyMemories(ctx, &weeklyContext)
 	sourceData, err := json.Marshal(weeklyContext)
 	if err != nil {
 		return nil, err
@@ -237,8 +259,107 @@ func (s *Service) GenerateWeeklySummary(ctx context.Context, startDate, endDate 
 		}
 		return nil, fmt.Errorf("%w: %v", ErrSummaryPersistFailed, err)
 	}
+	s.extractMemories(ctx, id, "weekly")
 
 	return &GenerateSummaryResult{SummaryID: id, Content: content, ActionItems: actionItems}, nil
+}
+
+func (s *Service) recallDailyMemories(ctx context.Context, source *DailySummarySourceData) {
+	source.RelevantMemories = []SummaryRelevantMemory{}
+	if s.memoryRecall == nil {
+		return
+	}
+	s.recallMemories(ctx, "daily", dailyProjectNames(source), &source.RelevantMemories, &source.Warnings)
+}
+
+func (s *Service) recallWeeklyMemories(ctx context.Context, source *WeeklySummarySourceData) {
+	source.RelevantMemories = []SummaryRelevantMemory{}
+	if s.memoryRecall == nil {
+		return
+	}
+	s.recallMemories(ctx, "weekly", weeklyProjectNames(source), &source.RelevantMemories, &source.Warnings)
+}
+
+func (s *Service) recallMemories(ctx context.Context, summaryType string, projectNames []string, target *[]SummaryRelevantMemory, warnings *[]string) {
+	start := time.Now()
+	items, err := s.memoryRecall.RecallRelevantMemories(ctx, memories.RecallInput{
+		SummaryType:  summaryType,
+		ProjectNames: projectNames,
+		Limit:        8,
+	})
+	elapsed := time.Since(start)
+	if err != nil {
+		*warnings = append(*warnings, "memory recall failed: "+err.Error())
+		log.Printf("memory_recall failed summary_type=%s error=%v elapsed=%s", summaryType, err, elapsed)
+		return
+	}
+	*target = compactRelevantMemories(items)
+	log.Printf("memory_recall completed summary_type=%s memory_count=%d elapsed=%s", summaryType, len(items), elapsed)
+}
+
+func dailyProjectNames(source *DailySummarySourceData) []string {
+	names := make([]string, 0, len(source.Today.ProjectBreakdown))
+	for _, project := range source.Today.ProjectBreakdown {
+		names = append(names, project.ProjectName)
+	}
+	return names
+}
+
+func weeklyProjectNames(source *WeeklySummarySourceData) []string {
+	names := make([]string, 0, len(source.Week.ProjectBreakdown))
+	for _, project := range source.Week.ProjectBreakdown {
+		names = append(names, project.ProjectName)
+	}
+	return names
+}
+
+func compactRelevantMemories(items []memories.StudyMemory) []SummaryRelevantMemory {
+	result := make([]SummaryRelevantMemory, 0, len(items))
+	for _, item := range items {
+		result = append(result, SummaryRelevantMemory{
+			ID:           item.ID,
+			MemoryType:   item.MemoryType,
+			ScopeType:    item.ScopeType,
+			ProjectID:    item.ProjectID,
+			Title:        item.Title,
+			Content:      trimMemoryContent(item.Content),
+			Confidence:   item.Confidence,
+			SupportCount: item.SupportCount,
+			LastSeenAt:   item.LastSeenAt.Format(time.RFC3339),
+		})
+	}
+	return result
+}
+
+func trimMemoryContent(content string) string {
+	runes := []rune(content)
+	if len(runes) <= 500 {
+		return content
+	}
+	return string(runes[:500])
+}
+
+func (s *Service) extractMemories(ctx context.Context, summaryID int64, summaryType string) {
+	if s.memoryExtractor == nil {
+		return
+	}
+	start := time.Now()
+	result, err := s.memoryExtractor.ExtractFromSummary(ctx, summaryID)
+	elapsed := time.Since(start)
+	if err != nil {
+		log.Printf("memory_extraction failed summary_id=%d summary_type=%s error=%v elapsed=%s", summaryID, summaryType, err, elapsed)
+		return
+	}
+	log.Printf(
+		"memory_extraction completed summary_id=%d summary_type=%s created_count=%d updated_count=%d skipped_count=%d evidence_count=%d elapsed=%s",
+		summaryID,
+		summaryType,
+		result.CreatedCount,
+		result.UpdatedCount,
+		result.SkippedCount,
+		result.EvidenceCount,
+		elapsed,
+	)
 }
 
 func (s *Service) ListSummaries(ctx context.Context, summaryType string) ([]GeneratedSummary, error) {
@@ -347,6 +468,10 @@ func (s *Service) generateSummaryWithLog(ctx context.Context, summaryType, promp
 }
 
 func buildDailyPrompt(sourceData string) string {
+	return buildDailyPromptBase(sourceData) + "\n" + memoryPromptGuidance()
+}
+
+func buildDailyPromptBase(sourceData string) string {
 	return `你是一个理性的学习记录分析助手。
 你必须使用中文输出。
 你不能编造输入数据中不存在的项目、任务、时间、备注或趋势。
@@ -398,6 +523,10 @@ Daily Summary 输出结构必须固定为：
 }
 
 func buildWeeklyPrompt(sourceData string) string {
+	return buildWeeklyPromptBase(sourceData) + "\n" + memoryPromptGuidance()
+}
+
+func buildWeeklyPromptBase(sourceData string) string {
 	return `你是一个理性的学习记录分析助手。
 你必须使用中文输出。
 你不能编造输入数据中不存在的项目、任务、时间、备注或趋势。
@@ -458,6 +587,15 @@ Weekly Summary 输出结构必须固定为：
 ` + sourceData
 }
 
+func memoryPromptGuidance() string {
+	return `长期记忆参考：
+- source_data.relevant_memories 是历史数据沉淀出的长期规律；为空数组时表示暂无可用长期记忆。
+- 可以用长期记忆辅助分析今天/本周，但不要机械重复 memory 内容。
+- 只有当 memory 与当前数据相关时才引用。
+- 如果当前数据与 memory 矛盾，要指出可能发生变化，不要强行套用旧规律。
+- 不要把 memory 当成绝对事实。`
+}
+
 func buildDailySummarySourceData(targetDate string, recentDates []string, tasks []dailySummaryTaskRow, sessions []dailySummarySessionRow) DailySummarySourceData {
 	includedTasks, includedSessions, excluded := splitSummaryScope(tasks, sessions)
 	contextDates := append([]string{targetDate}, recentDates...)
@@ -495,8 +633,9 @@ func buildDailySummarySourceData(targetDate string, recentDates []string, tasks 
 			ProjectPatterns:  buildProjectPatterns(contextDates, tasksByDate, sessionsByDate),
 			RepeatedNotes:    extractRepeatedNotes(tasksForDates(contextDates, tasksByDate)),
 		},
-		Excluded: excluded,
-		Warnings: buildSummaryWarnings(excluded),
+		RelevantMemories: []SummaryRelevantMemory{},
+		Excluded:         excluded,
+		Warnings:         buildSummaryWarnings(excluded),
 	}
 
 	return source
@@ -532,6 +671,7 @@ func buildWeeklySummarySourceData(weekStart, weekEnd string, weekDates []string,
 			RepeatedNotes:     extractRepeatedNotes(includedWeekTasks),
 		},
 		PreviousWeekComparison: buildPreviousWeekComparison(previousDaysWithData, includedPreviousWeekTasks),
+		RelevantMemories:       []SummaryRelevantMemory{},
 		Excluded:               excluded,
 		Warnings:               buildSummaryWarnings(excluded),
 	}

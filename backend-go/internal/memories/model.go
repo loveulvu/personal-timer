@@ -86,3 +86,10 @@ type ExtractionResult struct {
 	Memories      []StudyMemory `json:"memories"`
 	Warnings      []string      `json:"warnings,omitempty"`
 }
+
+type RecallInput struct {
+	SummaryType  string
+	ProjectIDs   []int64
+	ProjectNames []string
+	Limit        int
+}

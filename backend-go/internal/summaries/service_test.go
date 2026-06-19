@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"personal/internal/memories"
 	"personal/internal/stats"
 )
 
@@ -514,7 +515,7 @@ func TestGenerateDailySummaryPersistsStructuredSourceData(t *testing.T) {
 	if err := json.Unmarshal(repo.created.SourceData, &raw); err != nil {
 		t.Fatalf("source_data is not an object: %v", err)
 	}
-	for _, key := range []string{"summary_type", "target_date", "data_quality", "today", "recent_context", "excluded"} {
+	for _, key := range []string{"summary_type", "target_date", "data_quality", "today", "recent_context", "relevant_memories", "excluded"} {
 		if _, ok := raw[key]; !ok {
 			t.Fatalf("source_data is missing top-level key %q: %s", key, string(repo.created.SourceData))
 		}
@@ -697,7 +698,7 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 	if err := json.Unmarshal(repo.created.SourceData, &raw); err != nil {
 		t.Fatalf("weekly source_data is not an object: %v", err)
 	}
-	for _, key := range []string{"summary_type", "week_start", "week_end", "data_quality", "week", "previous_week_comparison", "excluded"} {
+	for _, key := range []string{"summary_type", "week_start", "week_end", "data_quality", "week", "previous_week_comparison", "relevant_memories", "excluded"} {
 		if _, ok := raw[key]; !ok {
 			t.Fatalf("weekly source_data is missing top-level key %q: %s", key, string(repo.created.SourceData))
 		}
@@ -710,6 +711,223 @@ func TestGenerateWeeklySummaryPersistsStructuredSourceData(t *testing.T) {
 		if _, ok := week[key]; !ok {
 			t.Fatalf("weekly source_data.week is missing key %q: %s", key, string(repo.created.SourceData))
 		}
+	}
+}
+
+func TestGenerateDailySummaryUsesMemoryRecallInSourceDataAndPrompt(t *testing.T) {
+	var prompt string
+	recall := &fakeMemoryRecall{items: []memories.StudyMemory{testMemory(1, "repeated_blocker", "topic", nil, "重复卡点：Go 并发")}}
+	repo := &fakeSummaryRepo{
+		tasks:    []dailySummaryTaskRow{taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "context", "channel")},
+		sessions: []dailySummarySessionRow{sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800)},
+	}
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "daily ok", prompt: &prompt},
+		memoryRecall: recall,
+	}
+
+	if _, err := service.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil {
+		t.Fatalf("GenerateDailySummary error: %v", err)
+	}
+	if len(recall.inputs) != 1 || recall.inputs[0].SummaryType != "daily" || !reflect.DeepEqual(recall.inputs[0].ProjectNames, []string{"Go"}) {
+		t.Fatalf("recall inputs = %+v, want daily Go recall", recall.inputs)
+	}
+	var source DailySummarySourceData
+	if err := json.Unmarshal(repo.created.SourceData, &source); err != nil {
+		t.Fatal(err)
+	}
+	if len(source.RelevantMemories) != 1 || source.RelevantMemories[0].Title != "重复卡点：Go 并发" {
+		t.Fatalf("relevant_memories = %+v, want recalled memory", source.RelevantMemories)
+	}
+	if !strings.Contains(prompt, "长期记忆参考") || !strings.Contains(prompt, "重复卡点：Go 并发") {
+		t.Fatalf("prompt missing memory guidance/title: %s", prompt)
+	}
+}
+
+func TestGenerateWeeklySummaryUsesMemoryRecallInSourceDataAndPrompt(t *testing.T) {
+	var prompt string
+	recall := &fakeMemoryRecall{items: []memories.StudyMemory{testMemory(2, "estimate_bias", "project", int64Ptr(3), "估时偏差：Go 经常超时")}}
+	repo := &fakeSummaryRepo{
+		tasks:    []dailySummaryTaskRow{taskRow("2026-06-15", "Go", "completed", 30, 1800, nil, "context", "channel")},
+		sessions: []dailySummarySessionRow{sessionRow("2026-06-15", "Go", "2026-06-15T15:00:00", 1800)},
+	}
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "weekly ok", prompt: &prompt},
+		memoryRecall: recall,
+	}
+
+	if _, err := service.GenerateWeeklySummary(context.Background(), "2026-06-15", "2026-06-21"); err != nil {
+		t.Fatalf("GenerateWeeklySummary error: %v", err)
+	}
+	if len(recall.inputs) != 1 || recall.inputs[0].SummaryType != "weekly" || !reflect.DeepEqual(recall.inputs[0].ProjectNames, []string{"Go"}) {
+		t.Fatalf("recall inputs = %+v, want weekly Go recall", recall.inputs)
+	}
+	var source WeeklySummarySourceData
+	if err := json.Unmarshal(repo.created.SourceData, &source); err != nil {
+		t.Fatal(err)
+	}
+	if len(source.RelevantMemories) != 1 || source.RelevantMemories[0].Title != "估时偏差：Go 经常超时" {
+		t.Fatalf("relevant_memories = %+v, want recalled memory", source.RelevantMemories)
+	}
+	if !strings.Contains(prompt, "长期记忆参考") || !strings.Contains(prompt, "估时偏差：Go 经常超时") {
+		t.Fatalf("prompt missing memory guidance/title: %s", prompt)
+	}
+}
+
+func TestMemoryRecallFailureDoesNotFailSummaryAndWritesWarning(t *testing.T) {
+	var prompt string
+	repo := &fakeSummaryRepo{
+		tasks:    []dailySummaryTaskRow{taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "", "")},
+		sessions: []dailySummarySessionRow{sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800)},
+	}
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "daily ok", prompt: &prompt},
+		memoryRecall: &fakeMemoryRecall{err: errors.New("recall failed")},
+	}
+	if result, err := service.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil || result.SummaryID != 42 {
+		t.Fatalf("result=%+v err=%v, want summary success", result, err)
+	}
+	var source DailySummarySourceData
+	if err := json.Unmarshal(repo.created.SourceData, &source); err != nil {
+		t.Fatal(err)
+	}
+	if !containsStringPrefix(source.Warnings, "memory recall failed:") {
+		t.Fatalf("warnings = %+v, want memory recall warning", source.Warnings)
+	}
+	if !strings.Contains(prompt, "暂无可用长期记忆") {
+		t.Fatalf("prompt missing empty memory guidance: %s", prompt)
+	}
+}
+
+func TestEmptyDailyFallbackDoesNotFailWhenMemoryRecallFails(t *testing.T) {
+	llmCalls := 0
+	repo := &fakeSummaryRepo{}
+	service := &Service{
+		repo:         repo,
+		statsService: fakeWeeklyStatsProvider{},
+		llmClient:    fakeLLM{content: "unused", calls: &llmCalls},
+		memoryRecall: &fakeMemoryRecall{err: errors.New("recall failed")},
+	}
+	if _, err := service.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil {
+		t.Fatalf("GenerateDailySummary error: %v", err)
+	}
+	if llmCalls != 0 {
+		t.Fatalf("llm calls = %d, want 0", llmCalls)
+	}
+	var source DailySummarySourceData
+	if err := json.Unmarshal(repo.created.SourceData, &source); err != nil {
+		t.Fatal(err)
+	}
+	if !containsStringPrefix(source.Warnings, "memory recall failed:") {
+		t.Fatalf("warnings = %+v, want memory recall warning", source.Warnings)
+	}
+}
+
+func TestGenerateSummaryAutoExtractsMemoriesAfterPersist(t *testing.T) {
+	dailyExtractor := &fakeMemoryExtractor{}
+	dailyService := &Service{
+		repo: &fakeSummaryRepo{
+			tasks:    []dailySummaryTaskRow{taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "context", "channel")},
+			sessions: []dailySummarySessionRow{sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800)},
+		},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "daily ok"},
+		memoryExtractor: dailyExtractor,
+	}
+	if _, err := dailyService.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil {
+		t.Fatalf("GenerateDailySummary error: %v", err)
+	}
+	if !reflect.DeepEqual(dailyExtractor.summaryIDs, []int64{42}) {
+		t.Fatalf("daily extractor calls = %v, want [42]", dailyExtractor.summaryIDs)
+	}
+
+	weeklyExtractor := &fakeMemoryExtractor{}
+	weeklyService := &Service{
+		repo: &fakeSummaryRepo{
+			tasks:    []dailySummaryTaskRow{taskRow("2026-06-15", "Go", "completed", 30, 1800, nil, "context", "channel")},
+			sessions: []dailySummarySessionRow{sessionRow("2026-06-15", "Go", "2026-06-15T15:00:00", 1800)},
+		},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "weekly ok"},
+		memoryExtractor: weeklyExtractor,
+	}
+	if _, err := weeklyService.GenerateWeeklySummary(context.Background(), "2026-06-15", "2026-06-21"); err != nil {
+		t.Fatalf("GenerateWeeklySummary error: %v", err)
+	}
+	if !reflect.DeepEqual(weeklyExtractor.summaryIDs, []int64{42}) {
+		t.Fatalf("weekly extractor calls = %v, want [42]", weeklyExtractor.summaryIDs)
+	}
+}
+
+func TestGenerateEmptyDailyFallbackStillAttemptsMemoryExtraction(t *testing.T) {
+	extractor := &fakeMemoryExtractor{}
+	service := &Service{
+		repo:            &fakeSummaryRepo{},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "unused"},
+		memoryExtractor: extractor,
+	}
+	if _, err := service.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil {
+		t.Fatalf("GenerateDailySummary error: %v", err)
+	}
+	if !reflect.DeepEqual(extractor.summaryIDs, []int64{42}) {
+		t.Fatalf("extractor calls = %v, want [42]", extractor.summaryIDs)
+	}
+}
+
+func TestMemoryExtractionFailureDoesNotFailSummaryGeneration(t *testing.T) {
+	dailyExtractor := &fakeMemoryExtractor{err: errors.New("boom")}
+	dailyService := &Service{
+		repo: &fakeSummaryRepo{
+			tasks:    []dailySummaryTaskRow{taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "", "")},
+			sessions: []dailySummarySessionRow{sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800)},
+		},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "daily ok"},
+		memoryExtractor: dailyExtractor,
+	}
+	if result, err := dailyService.GenerateDailySummary(context.Background(), "2026-06-18"); err != nil || result.SummaryID != 42 {
+		t.Fatalf("daily result=%+v err=%v, want summary success", result, err)
+	}
+
+	weeklyExtractor := &fakeMemoryExtractor{err: errors.New("boom")}
+	weeklyService := &Service{
+		repo: &fakeSummaryRepo{
+			tasks:    []dailySummaryTaskRow{taskRow("2026-06-15", "Go", "completed", 30, 1800, nil, "", "")},
+			sessions: []dailySummarySessionRow{sessionRow("2026-06-15", "Go", "2026-06-15T15:00:00", 1800)},
+		},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "weekly ok"},
+		memoryExtractor: weeklyExtractor,
+	}
+	if result, err := weeklyService.GenerateWeeklySummary(context.Background(), "2026-06-15", "2026-06-21"); err != nil || result.SummaryID != 42 {
+		t.Fatalf("weekly result=%+v err=%v, want summary success", result, err)
+	}
+}
+
+func TestMemoryExtractionIsNotCalledWhenSummaryPersistFails(t *testing.T) {
+	extractor := &fakeMemoryExtractor{}
+	service := &Service{
+		repo: &fakeSummaryRepo{
+			createErr: errors.New("insert failed"),
+			tasks:     []dailySummaryTaskRow{taskRow("2026-06-18", "Go", "completed", 30, 1800, nil, "", "")},
+			sessions:  []dailySummarySessionRow{sessionRow("2026-06-18", "Go", "2026-06-18T15:00:00", 1800)},
+		},
+		statsService:    fakeWeeklyStatsProvider{},
+		llmClient:       fakeLLM{content: "daily ok"},
+		memoryExtractor: extractor,
+	}
+	if _, err := service.GenerateDailySummary(context.Background(), "2026-06-18"); !errors.Is(err, ErrSummaryPersistFailed) {
+		t.Fatalf("error = %v, want ErrSummaryPersistFailed", err)
+	}
+	if len(extractor.summaryIDs) != 0 {
+		t.Fatalf("extractor calls = %v, want none", extractor.summaryIDs)
 	}
 }
 
@@ -891,9 +1109,13 @@ type fakeSummaryRepo struct {
 	project                   *summaryProjectRow
 	existingTask              *AcceptedDailyTask
 	createdTask               *AcceptedDailyTask
+	createErr                 error
 }
 
 func (r *fakeSummaryRepo) CreateSummary(ctx context.Context, input CreateSummaryInput) (int64, error) {
+	if r.createErr != nil {
+		return 0, r.createErr
+	}
 	r.created = input
 	return 42, nil
 }
@@ -1017,4 +1239,59 @@ func (f fakeLLM) GenerateSummary(ctx context.Context, prompt string) (string, er
 		*f.prompt = prompt
 	}
 	return f.content, nil
+}
+
+type fakeMemoryExtractor struct {
+	summaryIDs []int64
+	err        error
+}
+
+func (f *fakeMemoryExtractor) ExtractFromSummary(ctx context.Context, summaryID int64) (memories.ExtractionResult, error) {
+	f.summaryIDs = append(f.summaryIDs, summaryID)
+	if f.err != nil {
+		return memories.ExtractionResult{SummaryID: summaryID}, f.err
+	}
+	return memories.ExtractionResult{SummaryID: summaryID, CreatedCount: 1, EvidenceCount: 1}, nil
+}
+
+type fakeMemoryRecall struct {
+	inputs []memories.RecallInput
+	items  []memories.StudyMemory
+	err    error
+}
+
+func (f *fakeMemoryRecall) RecallRelevantMemories(ctx context.Context, input memories.RecallInput) ([]memories.StudyMemory, error) {
+	f.inputs = append(f.inputs, input)
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.items, nil
+}
+
+func testMemory(id int64, memoryType, scopeType string, projectID *int64, title string) memories.StudyMemory {
+	return memories.StudyMemory{
+		ID:           id,
+		MemoryType:   memoryType,
+		ScopeType:    scopeType,
+		ProjectID:    projectID,
+		Title:        title,
+		Content:      title + " content",
+		Confidence:   0.7,
+		SupportCount: 2,
+		LastSeenAt:   time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC),
+		Status:       "active",
+	}
+}
+
+func int64Ptr(value int64) *int64 {
+	return &value
+}
+
+func containsStringPrefix(values []string, prefix string) bool {
+	for _, value := range values {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
 }

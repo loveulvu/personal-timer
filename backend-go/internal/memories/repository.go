@@ -153,6 +153,52 @@ func (r *Repository) ListMemories(ctx context.Context, filter ListMemoriesFilter
 	return memories, nil
 }
 
+func (r *Repository) ListActiveMemoriesForRecall(ctx context.Context, projectIDs []int64, limit int) ([]StudyMemory, error) {
+	args := []any{"repeated_blocker", "estimate_bias", "time_pattern", 0.5}
+	query := `
+		SELECT id, memory_type, scope_type, project_id, title, content, structured_data,
+			confidence, support_count, contradiction_count, first_seen_at, last_seen_at,
+			status, created_at, updated_at
+		FROM study_memories
+		WHERE status = 'active'
+			AND memory_type IN (?, ?, ?)
+			AND confidence >= ?
+			AND (
+				scope_type IN ('global', 'topic')
+	`
+	if len(projectIDs) > 0 {
+		query += ` OR (scope_type = 'project' AND project_id IN (` + placeholders(len(projectIDs)) + `))`
+		for _, id := range projectIDs {
+			args = append(args, id)
+		}
+	}
+	query += `
+			)
+		ORDER BY confidence DESC, last_seen_at DESC, id DESC
+		LIMIT ?
+	`
+	args = append(args, normalizeLimit(limit))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	memories := make([]StudyMemory, 0)
+	for rows.Next() {
+		memory, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, memory)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return memories, nil
+}
+
 func (r *Repository) UpdateMemory(ctx context.Context, id int64, input UpdateMemoryInput) (StudyMemory, error) {
 	assignments := make([]string, 0)
 	args := make([]any, 0)
@@ -474,6 +520,13 @@ func nullableString(value *string) any {
 		return nil
 	}
 	return *value
+}
+
+func placeholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	return strings.TrimRight(strings.Repeat("?,", count), ",")
 }
 
 type summaryForExtraction struct {

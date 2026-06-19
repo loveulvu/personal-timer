@@ -40,7 +40,7 @@ Personal Timer 的核心问题是：
 - action_items 还不能被用户采纳为明日任务。
 - 没有长期 memory 表，无法把多次 Summary 中稳定出现的模式沉淀出来。
 - 没有 evidence 表，无法追溯 memory 的来源和置信度。
-- 没有 memory recall，下一次 Summary 还不能引用长期画像。
+- Memory Recall V1 已接入，但还没有 memory 管理 UI、反馈闭环或 Agent workflow。
 - 没有自动估时和计划风险预测。
 - 没有用户反馈闭环来验证建议是否有用。
 
@@ -715,7 +715,7 @@ otherwise => low
 
 - 不接入 Daily / Weekly Summary 生成。
 - 不修改 Summary prompt。
-- 不做 memory recall。
+- 不做 memory 管理 UI 或反馈闭环。
 - 不让 LLM 生成 memory。
 - 不做 UI。
 - 不引入向量库、RAG 或 Agent。
@@ -724,7 +724,7 @@ otherwise => low
 
 ## Memory Extraction V1 状态更新
 
-当前已支持手动触发的确定性 memory extraction。
+当前已支持手动触发和 Summary 生成后自动触发的确定性 memory extraction。
 
 已支持：
 
@@ -732,11 +732,27 @@ otherwise => low
 - 从 project breakdown 的超时数据提取 `estimate_bias`。
 - 从 weekly time distribution 提取 `time_pattern`。
 - 为每条 memory 写入 evidence，并保证同一 summary 重复提取不重复污染数据。
+- Daily / Weekly Summary 保存成功后会自动尝试提取；提取失败不影响 Summary 保存和返回。
 
 当前仍然不做：
 
 - 不让 LLM 提取 memory。
-- 不把 memory 接入 Daily / Weekly Summary prompt。
-- 不做 memory recall。
 - 不做 UI。
 - 不引入向量库、RAG 或 Agent。
+
+## Memory Recall V1 状态更新
+
+当前已把 MySQL 结构化 memory recall 接入 Daily / Weekly Summary。
+
+已支持：
+
+- 生成 Summary 前召回 active `repeated_blocker` / `estimate_bias` / `time_pattern` memories。
+- 将精简后的 `relevant_memories` 写入 `source_data`。
+- Prompt 中增加长期记忆参考规则。
+- recall 失败只记录 warning 和日志，不影响 Summary 生成。
+
+当前仍然不做：
+
+- 不让 LLM 提取 memory。
+- 不做向量库、RAG 或 Agent。
+- 不做 memory 管理 UI 或 feedback。

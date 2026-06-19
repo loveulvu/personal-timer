@@ -74,6 +74,11 @@ func main() {
 	llmClient := llm.NewClientFromEnv()
 	summaryRepo := summaries.NewRepository(mysqlDB)
 	summaryService := summaries.NewService(summaryRepo, statsService, llmClient)
+	memoryRepo := memories.NewRepository(mysqlDB)
+	memoryExtractor := memories.NewExtractor(memoryRepo)
+	memoryRecall := memories.NewRecallService(memoryRepo)
+	summaryService.SetMemoryExtractor(memoryExtractor)
+	summaryService.SetMemoryRecall(memoryRecall)
 	summaryHandler := summaries.NewHandler(summaryService)
 
 	api.POST("/summaries/daily/generate", summaryHandler.GenerateDailySummary)
@@ -82,8 +87,6 @@ func main() {
 	api.GET("/summaries/:id", summaryHandler.GetSummaryByID)
 	api.POST("/summaries/:summary_id/action-items/:item_index/accept", summaryHandler.AcceptActionItem)
 	api.DELETE("/summaries/:id", summaryHandler.DeleteSummary)
-	memoryRepo := memories.NewRepository(mysqlDB)
-	memoryExtractor := memories.NewExtractor(memoryRepo)
 	memoryHandler := memories.NewHandler(memoryExtractor)
 	api.POST("/memories/extract/summary/:summary_id", memoryHandler.ExtractSummary)
 	if err := r.Run(":8085"); err != nil {

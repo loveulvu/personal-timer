@@ -77,13 +77,14 @@ type summaryProjectRow struct {
 }
 
 type DailySummarySourceData struct {
-	SummaryType   string              `json:"summary_type"`
-	TargetDate    string              `json:"target_date"`
-	DataQuality   DailyDataQuality    `json:"data_quality"`
-	Today         DailySummaryToday   `json:"today"`
-	RecentContext DailySummaryContext `json:"recent_context"`
-	Excluded      SummaryExcluded     `json:"excluded"`
-	Warnings      []string            `json:"warnings,omitempty"`
+	SummaryType      string                  `json:"summary_type"`
+	TargetDate       string                  `json:"target_date"`
+	DataQuality      DailyDataQuality        `json:"data_quality"`
+	Today            DailySummaryToday       `json:"today"`
+	RecentContext    DailySummaryContext     `json:"recent_context"`
+	RelevantMemories []SummaryRelevantMemory `json:"relevant_memories"`
+	Excluded         SummaryExcluded         `json:"excluded"`
+	Warnings         []string                `json:"warnings,omitempty"`
 }
 
 type DailyDataQuality struct {
@@ -142,14 +143,27 @@ type DailyProjectPattern struct {
 }
 
 type WeeklySummarySourceData struct {
-	SummaryType            string                 `json:"summary_type"`
-	WeekStart              string                 `json:"week_start"`
-	WeekEnd                string                 `json:"week_end"`
-	DataQuality            WeeklyDataQuality      `json:"data_quality"`
-	Week                   WeeklySummaryWeek      `json:"week"`
-	PreviousWeekComparison PreviousWeekComparison `json:"previous_week_comparison"`
-	Excluded               SummaryExcluded        `json:"excluded"`
-	Warnings               []string               `json:"warnings,omitempty"`
+	SummaryType            string                  `json:"summary_type"`
+	WeekStart              string                  `json:"week_start"`
+	WeekEnd                string                  `json:"week_end"`
+	DataQuality            WeeklyDataQuality       `json:"data_quality"`
+	Week                   WeeklySummaryWeek       `json:"week"`
+	PreviousWeekComparison PreviousWeekComparison  `json:"previous_week_comparison"`
+	RelevantMemories       []SummaryRelevantMemory `json:"relevant_memories"`
+	Excluded               SummaryExcluded         `json:"excluded"`
+	Warnings               []string                `json:"warnings,omitempty"`
+}
+
+type SummaryRelevantMemory struct {
+	ID           int64   `json:"id"`
+	MemoryType   string  `json:"memory_type"`
+	ScopeType    string  `json:"scope_type"`
+	ProjectID    *int64  `json:"project_id"`
+	Title        string  `json:"title"`
+	Content      string  `json:"content"`
+	Confidence   float64 `json:"confidence"`
+	SupportCount int     `json:"support_count"`
+	LastSeenAt   string  `json:"last_seen_at"`
 }
 
 type WeeklyDataQuality struct {
