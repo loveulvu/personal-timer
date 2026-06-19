@@ -699,3 +699,25 @@ otherwise => low
 - 新依赖。
 
 这些不是永远不做，只是现在没有到需要它们的阶段。
+
+## Memory Foundation V1 状态更新
+
+`study_memories` 和 `study_memory_evidence` 已作为数据库基础设施加入项目。
+
+当前范围：
+
+- 已有 migrations。
+- 已有 Go model。
+- 已有 repository。
+- 已有 repository 测试。
+
+当前仍然不做：
+
+- 不接入 Daily / Weekly Summary 生成。
+- 不修改 Summary prompt。
+- 不做 memory recall。
+- 不让 LLM 生成 memory。
+- 不做 UI。
+- 不引入向量库、RAG 或 Agent。
+
+下一步只有当 Summary/action_items 闭环稳定后，才考虑从结构化 `source_data` 和 `action_items` 中沉淀 memory。

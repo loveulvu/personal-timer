@@ -644,10 +644,43 @@ actual_seconds = daily_tasks.actual_seconds_override
 当前没有：
 
 - `monthly_summaries`
-- `study_memories`
-- `study_memory_evidence`
 - `observations`
 - `agents`
 - embedding / vector 表
 
 后续如果新增表，必须说明业务必要性、读写流程和是否能被现有 JSON 快照替代。
+
+## Memory Foundation V1
+
+当前已新增长期记忆基础表，但尚未接入 Summary 生成流程，也没有 memory recall、Agent、RAG 或向量库。
+
+### study_memories
+
+业务含义：保存跨天/跨周沉淀出的学习行为模式，例如估时偏差、时间模式、项目推进模式、重复阻塞和建议模式。
+
+核心字段：
+
+- `memory_type`：`time_pattern` / `estimate_bias` / `project_pattern` / `repeated_blocker` / `suggestion_pattern`
+- `scope_type`：`global` / `project` / `topic`
+- `project_id`：可选项目范围，引用 `projects(id)`，项目删除时置空。
+- `structured_data`：JSON，保存机器可读的统计值。
+- `confidence`、`support_count`、`contradiction_count`：置信度和证据计数。
+- `first_seen_at`、`last_seen_at`：首次和最近观察时间。
+- `status`：`active` / `archived`
+
+当前读写者：仅 `backend-go/internal/memories` repository。Summary、action_items、任务流程暂不读写。
+
+### study_memory_evidence
+
+业务含义：保存 memory 的证据链。
+
+核心字段：
+
+- `memory_id`：引用 `study_memories(id)`，memory 删除时级联删除。
+- `source_type`：`daily_summary` / `weekly_summary` / `daily_task` / `finish_note` / `action_item` / `manual`
+- `source_id`：来源记录 id，可为空。
+- `evidence_date`：证据日期。
+- `excerpt`：证据摘录。
+- `weight`：证据权重。
+
+当前不会影响 Daily / Weekly Summary 生成；后续 memory recall 需要单独设计和接入。
