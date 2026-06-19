@@ -41,6 +41,27 @@ export type CreateDailyTaskRequest = {
   estimated_minutes: number
 }
 
+export type EstimatePreviewRiskLevel = 'insufficient_data' | 'low' | 'medium' | 'high'
+
+export type EstimatePreviewRequest = {
+  project_id: number
+  title?: string
+  estimated_minutes: number
+}
+
+export type EstimatePreviewResponse = {
+  project_id: number
+  input_estimated_minutes: number
+  sample_count: number
+  avg_estimated_minutes: number
+  avg_actual_minutes: number
+  overrun_rate: number
+  risk_level: EstimatePreviewRiskLevel
+  suggested_minutes: number
+  split_recommended: boolean
+  reason: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -162,6 +183,8 @@ export const api = {
   listDailyTasks: (date: string) => AppBindings.ListDailyTasks(date) as Promise<DailyTask[]>,
   createDailyTask: (request: CreateDailyTaskRequest) =>
     AppBindings.CreateDailyTask(request) as Promise<{ id: number }>,
+  estimateTaskPreview: (request: EstimatePreviewRequest) =>
+    AppBindings.EstimateTaskPreview({ ...request, title: request.title ?? '' }) as Promise<EstimatePreviewResponse>,
   startTask: (id: number) => AppBindings.StartTask(id),
   pauseTask: (id: number) => AppBindings.PauseTask(id),
   resumeTask: (id: number) => AppBindings.ResumeTask(id),

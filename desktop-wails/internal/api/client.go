@@ -93,6 +93,14 @@ func (c *Client) CreateDailyTask(ctx context.Context, req CreateDailyTaskRequest
 	return &result, nil
 }
 
+func (c *Client) EstimateTaskPreview(ctx context.Context, req EstimatePreviewRequest) (*EstimatePreviewResponse, error) {
+	var result dataResponse[EstimatePreviewResponse]
+	if err := c.doJSON(ctx, http.MethodPost, "/api/tasks/estimate-preview", req, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
 func (c *Client) GetProjects(ctx context.Context) ([]Project, error) {
 	var result dataResponse[[]Project]
 	if err := c.doJSON(ctx, http.MethodGet, "/api/projects", nil, &result); err != nil {

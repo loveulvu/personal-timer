@@ -33,6 +33,10 @@ func (a *App) CreateDailyTask(req api.CreateDailyTaskRequest) (*api.CreateRespon
 	return a.client.CreateDailyTask(a.ctx, req)
 }
 
+func (a *App) EstimateTaskPreview(req api.EstimatePreviewRequest) (*api.EstimatePreviewResponse, error) {
+	return a.client.EstimateTaskPreview(a.ctx, req)
+}
+
 func (a *App) GetProjects() ([]api.Project, error) {
 	return a.client.GetProjects(a.ctx)
 }

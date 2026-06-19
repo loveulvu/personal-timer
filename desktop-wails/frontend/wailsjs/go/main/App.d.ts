@@ -14,6 +14,8 @@ export function DeleteProject(arg1:number):Promise<void>;
 
 export function DeleteSummary(arg1:number):Promise<void>;
 
+export function EstimateTaskPreview(arg1:api.EstimatePreviewRequest):Promise<api.EstimatePreviewResponse>;
+
 export function FinishTask(arg1:number,arg2:api.FinishTaskRequest):Promise<void>;
 
 export function GenerateDailySummary(arg1:string):Promise<api.GenerateSummaryResult>;

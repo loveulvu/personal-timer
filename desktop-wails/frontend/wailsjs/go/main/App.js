@@ -26,6 +26,10 @@ export function DeleteSummary(arg1) {
   return window['go']['main']['App']['DeleteSummary'](arg1);
 }
 
+export function EstimateTaskPreview(arg1) {
+  return window['go']['main']['App']['EstimateTaskPreview'](arg1);
+}
+
 export function FinishTask(arg1, arg2) {
   return window['go']['main']['App']['FinishTask'](arg1, arg2);
 }

@@ -3,6 +3,7 @@ import { Alert, Button, Calendar, Card, DatePicker, Form, Input, InputNumber, Se
 import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { api, DailyTask, Project } from './api'
+import { EstimatePreviewPanel } from './components/EstimatePreviewPanel'
 import { StatusTag } from './components/StatusTag'
 import { TaskCompletionModal } from './features/dashboard/TaskCompletionModal'
 import { errorMessage, timerActionLabel } from './utils/labels'
@@ -124,6 +125,9 @@ export function TodayPage({ connected, openProjects }: Props) {
             </Form.Item>
             <Form.Item name="estimatedMinutes" label="预计分钟数" rules={[{ required: true, type: 'number', min: 1 }]}>
               <InputNumber min={1} />
+            </Form.Item>
+            <Form.Item>
+              <EstimatePreviewPanel form={form} connected={connected} />
             </Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} disabled={!connected || projects.length === 0}>创建</Button>
           </Form>

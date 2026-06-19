@@ -2,6 +2,7 @@ import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PauseCircleOutlined,
 import { Alert, Button, Card, Empty, Form, Input, InputNumber, List, Modal, Progress, Select, Space, Typography, message } from 'antd'
 import { useState } from 'react'
 import { api, DailyTask, Project } from '../../api'
+import { EstimatePreviewPanel } from '../../components/EstimatePreviewPanel'
 import { StatusTag } from '../../components/StatusTag'
 import { errorMessage } from '../../utils/labels'
 import { TimerAction } from './DashboardPage'
@@ -94,6 +95,9 @@ export function TodayTasksCard({ date, tasks, projects, projectNames, loading, c
           </Form.Item>
           <Form.Item name="estimatedMinutes" label="预计分钟数" rules={[{ required: true, type: 'number', min: 1 }]}>
             <InputNumber min={1} />
+          </Form.Item>
+          <Form.Item>
+            <EstimatePreviewPanel form={form} connected={connected} />
           </Form.Item>
           <Button type="primary" htmlType="submit">创建任务</Button>
         </Form>

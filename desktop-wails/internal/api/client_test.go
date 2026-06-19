@@ -36,6 +36,36 @@ func TestGenerateWeeklySummaryUsesWeeklyRouteAndDates(t *testing.T) {
 	}
 }
 
+func TestEstimateTaskPreviewUsesRouteAndReturnsData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/tasks/estimate-preview" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var request EstimatePreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.ProjectID != 3 || request.EstimatedMinutes != 45 {
+			t.Fatalf("unexpected request: %#v", request)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"project_id":3,"input_estimated_minutes":45,"sample_count":8,"avg_estimated_minutes":50,"avg_actual_minutes":78,"overrun_rate":0.56,"risk_level":"high","suggested_minutes":80,"split_recommended":false,"reason":"ok"}}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).EstimateTaskPreview(context.Background(), EstimatePreviewRequest{
+		ProjectID:        3,
+		Title:            "task",
+		EstimatedMinutes: 45,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RiskLevel != "high" || result.SuggestedMinutes != 80 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

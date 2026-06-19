@@ -204,6 +204,52 @@ export namespace api {
 	}
 	
 	
+	export class EstimatePreviewRequest {
+	    project_id: number;
+	    title: string;
+	    estimated_minutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EstimatePreviewRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.project_id = source["project_id"];
+	        this.title = source["title"];
+	        this.estimated_minutes = source["estimated_minutes"];
+	    }
+	}
+	export class EstimatePreviewResponse {
+	    project_id: number;
+	    input_estimated_minutes: number;
+	    sample_count: number;
+	    avg_estimated_minutes: number;
+	    avg_actual_minutes: number;
+	    overrun_rate: number;
+	    risk_level: string;
+	    suggested_minutes: number;
+	    split_recommended: boolean;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EstimatePreviewResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.project_id = source["project_id"];
+	        this.input_estimated_minutes = source["input_estimated_minutes"];
+	        this.sample_count = source["sample_count"];
+	        this.avg_estimated_minutes = source["avg_estimated_minutes"];
+	        this.avg_actual_minutes = source["avg_actual_minutes"];
+	        this.overrun_rate = source["overrun_rate"];
+	        this.risk_level = source["risk_level"];
+	        this.suggested_minutes = source["suggested_minutes"];
+	        this.split_recommended = source["split_recommended"];
+	        this.reason = source["reason"];
+	    }
+	}
 	export class FinishTaskRequest {
 	    finish_note: string;
 	    finish_description: string;

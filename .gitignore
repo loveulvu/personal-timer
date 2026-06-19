@@ -2,3 +2,5 @@
 desktop-wails/frontend/dist/
 **/.tmp/
 .tmp-go-*/
+**/.gotmp/
+**/.gocache/
