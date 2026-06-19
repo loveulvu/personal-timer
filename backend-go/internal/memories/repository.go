@@ -18,6 +18,7 @@ var (
 	ErrMemoryNotFound       = errors.New("memory not found")
 	ErrInvalidMemoryInput   = errors.New("invalid memory input")
 	ErrInvalidEvidenceInput = errors.New("invalid memory evidence input")
+	ErrSummaryNotFound      = errors.New("summary not found")
 )
 
 type Repository struct {
@@ -68,6 +69,25 @@ func (r *Repository) GetMemoryByID(ctx context.Context, id int64) (StudyMemory, 
 		FROM study_memories
 		WHERE id = ?
 	`, id)
+}
+
+func (r *Repository) FindActiveMemoryByIdentity(ctx context.Context, memoryType, scopeType string, projectID *int64, title string) (StudyMemory, error) {
+	query := `
+		SELECT id, memory_type, scope_type, project_id, title, content, structured_data,
+			confidence, support_count, contradiction_count, first_seen_at, last_seen_at,
+			status, created_at, updated_at
+		FROM study_memories
+		WHERE memory_type = ? AND scope_type = ? AND title = ? AND status = 'active'
+	`
+	args := []any{memoryType, scopeType, title}
+	if projectID == nil {
+		query += " AND project_id IS NULL"
+	} else {
+		query += " AND project_id = ?"
+		args = append(args, *projectID)
+	}
+	query += " LIMIT 1"
+	return r.scanMemory(ctx, query, args...)
 }
 
 func (r *Repository) ListMemories(ctx context.Context, filter ListMemoriesFilter) ([]StudyMemory, error) {
@@ -237,6 +257,20 @@ func (r *Repository) AddEvidence(ctx context.Context, input AddEvidenceInput) (S
 		return StudyMemoryEvidence{}, err
 	}
 	return r.getEvidenceByID(ctx, id)
+}
+
+func (r *Repository) EvidenceExists(ctx context.Context, memoryID int64, sourceType string, sourceID int64) (bool, error) {
+	var exists int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 1
+		FROM study_memory_evidence
+		WHERE memory_id = ? AND source_type = ? AND source_id = ?
+		LIMIT 1
+	`, memoryID, sourceType, sourceID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (r *Repository) ListEvidence(ctx context.Context, memoryID int64) ([]StudyMemoryEvidence, error) {
@@ -440,4 +474,62 @@ func nullableString(value *string) any {
 		return nil
 	}
 	return *value
+}
+
+type summaryForExtraction struct {
+	ID          int64
+	SummaryType string
+	StartDate   string
+	EndDate     string
+	SourceData  json.RawMessage
+	ActionItems json.RawMessage
+	CreatedAt   time.Time
+}
+
+type projectForExtraction struct {
+	ID               int64
+	Name             string
+	IncludeInSummary bool
+}
+
+func (r *Repository) GetSummaryForExtraction(ctx context.Context, id int64) (summaryForExtraction, error) {
+	var summary summaryForExtraction
+	var sourceData sql.NullString
+	var actionItems sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, summary_type, DATE_FORMAT(start_date, '%Y-%m-%d'), DATE_FORMAT(end_date, '%Y-%m-%d'), source_data, action_items, created_at
+		FROM generated_summaries
+		WHERE id = ?
+	`, id).Scan(&summary.ID, &summary.SummaryType, &summary.StartDate, &summary.EndDate, &sourceData, &actionItems, &summary.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return summaryForExtraction{}, ErrSummaryNotFound
+	}
+	if err != nil {
+		return summaryForExtraction{}, err
+	}
+	if sourceData.Valid {
+		summary.SourceData = json.RawMessage(sourceData.String)
+	}
+	if actionItems.Valid && json.Valid([]byte(actionItems.String)) {
+		summary.ActionItems = json.RawMessage(actionItems.String)
+	}
+	return summary, nil
+}
+
+func (r *Repository) FindProjectForExtraction(ctx context.Context, projectID *int64, name string) (*projectForExtraction, error) {
+	var row *sql.Row
+	if projectID != nil {
+		row = r.db.QueryRowContext(ctx, `SELECT id, name, include_in_summary FROM projects WHERE id = ?`, *projectID)
+	} else {
+		row = r.db.QueryRowContext(ctx, `SELECT id, name, include_in_summary FROM projects WHERE name = ?`, name)
+	}
+	var project projectForExtraction
+	err := row.Scan(&project.ID, &project.Name, &project.IncludeInSummary)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
 }

@@ -684,3 +684,14 @@ actual_seconds = daily_tasks.actual_seconds_override
 - `weight`：证据权重。
 
 当前不会影响 Daily / Weekly Summary 生成；后续 memory recall 需要单独设计和接入。
+
+### Memory Extraction V1
+
+当前已支持手动触发确定性规则提取 memory：
+
+- 来源：`generated_summaries.source_data`，`action_items` 仅安全解析，不作为主要记忆来源。
+- 支持类型：`repeated_blocker`、`estimate_bias`、`time_pattern`。
+- 写入：`study_memories` 和 `study_memory_evidence`。
+- 幂等：同一个 summary 对同一条 active memory 只添加一次 evidence，不重复增加 `support_count`。
+
+当前仍然没有 LLM memory extraction、memory recall、Summary prompt 接入、UI、Agent、RAG 或向量库。

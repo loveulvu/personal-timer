@@ -721,3 +721,22 @@ otherwise => low
 - 不引入向量库、RAG 或 Agent。
 
 下一步只有当 Summary/action_items 闭环稳定后，才考虑从结构化 `source_data` 和 `action_items` 中沉淀 memory。
+
+## Memory Extraction V1 状态更新
+
+当前已支持手动触发的确定性 memory extraction。
+
+已支持：
+
+- 从 summary `source_data.repeated_notes` 提取 `repeated_blocker`。
+- 从 project breakdown 的超时数据提取 `estimate_bias`。
+- 从 weekly time distribution 提取 `time_pattern`。
+- 为每条 memory 写入 evidence，并保证同一 summary 重复提取不重复污染数据。
+
+当前仍然不做：
+
+- 不让 LLM 提取 memory。
+- 不把 memory 接入 Daily / Weekly Summary prompt。
+- 不做 memory recall。
+- 不做 UI。
+- 不引入向量库、RAG 或 Agent。

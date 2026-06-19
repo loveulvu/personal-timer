@@ -6,6 +6,7 @@ import (
 	"personal/internal/db"
 	"personal/internal/handler"
 	"personal/internal/llm"
+	"personal/internal/memories"
 	"personal/internal/projects"
 	"personal/internal/stats"
 	"personal/internal/summaries"
@@ -81,6 +82,10 @@ func main() {
 	api.GET("/summaries/:id", summaryHandler.GetSummaryByID)
 	api.POST("/summaries/:summary_id/action-items/:item_index/accept", summaryHandler.AcceptActionItem)
 	api.DELETE("/summaries/:id", summaryHandler.DeleteSummary)
+	memoryRepo := memories.NewRepository(mysqlDB)
+	memoryExtractor := memories.NewExtractor(memoryRepo)
+	memoryHandler := memories.NewHandler(memoryExtractor)
+	api.POST("/memories/extract/summary/:summary_id", memoryHandler.ExtractSummary)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 	}

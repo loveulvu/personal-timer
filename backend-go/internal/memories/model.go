@@ -76,3 +76,13 @@ type ListMemoriesFilter struct {
 	Status     string
 	Limit      int
 }
+
+type ExtractionResult struct {
+	SummaryID     int64         `json:"summary_id"`
+	CreatedCount  int           `json:"created_count"`
+	UpdatedCount  int           `json:"updated_count"`
+	SkippedCount  int           `json:"skipped_count"`
+	EvidenceCount int           `json:"evidence_count"`
+	Memories      []StudyMemory `json:"memories"`
+	Warnings      []string      `json:"warnings,omitempty"`
+}

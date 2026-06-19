@@ -1,5 +1,95 @@
 export namespace api {
 	
+	export class DailyTask {
+	    id: number;
+	    project_id?: number;
+	    task_date: string;
+	    title: string;
+	    estimated_minutes: number;
+	    status: string;
+	    finish_note?: string;
+	    finish_description?: string;
+	    // Go type: time
+	    completed_at?: any;
+	    actual_seconds_override?: number;
+	    actual_seconds: number;
+	    // Go type: time
+	    current_session_started_at?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new DailyTask(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.task_date = source["task_date"];
+	        this.title = source["title"];
+	        this.estimated_minutes = source["estimated_minutes"];
+	        this.status = source["status"];
+	        this.finish_note = source["finish_note"];
+	        this.finish_description = source["finish_description"];
+	        this.completed_at = this.convertValues(source["completed_at"], null);
+	        this.actual_seconds_override = source["actual_seconds_override"];
+	        this.actual_seconds = source["actual_seconds"];
+	        this.current_session_started_at = this.convertValues(source["current_session_started_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class AcceptActionItemResult {
+	    created: boolean;
+	    already_exists: boolean;
+	    task?: DailyTask;
+	    message?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AcceptActionItemResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.created = source["created"];
+	        this.already_exists = source["already_exists"];
+	        this.task = this.convertValues(source["task"], DailyTask);
+	        this.message = source["message"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ConfigStatus {
 	    database: string;
 	    llm_configured: boolean;
@@ -112,60 +202,7 @@ export namespace api {
 		    return a;
 		}
 	}
-	export class DailyTask {
-	    id: number;
-	    project_id?: number;
-	    task_date: string;
-	    title: string;
-	    estimated_minutes: number;
-	    status: string;
-	    finish_note?: string;
-	    finish_description?: string;
-	    // Go type: time
-	    completed_at?: any;
-	    actual_seconds_override?: number;
-	    actual_seconds: number;
-	    // Go type: time
-	    current_session_started_at?: any;
 	
-	    static createFrom(source: any = {}) {
-	        return new DailyTask(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.project_id = source["project_id"];
-	        this.task_date = source["task_date"];
-	        this.title = source["title"];
-	        this.estimated_minutes = source["estimated_minutes"];
-	        this.status = source["status"];
-	        this.finish_note = source["finish_note"];
-	        this.finish_description = source["finish_description"];
-	        this.completed_at = this.convertValues(source["completed_at"], null);
-	        this.actual_seconds_override = source["actual_seconds_override"];
-	        this.actual_seconds = source["actual_seconds"];
-	        this.current_session_started_at = this.convertValues(source["current_session_started_at"], null);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	
 	export class FinishTaskRequest {
 	    finish_note: string;
@@ -196,42 +233,6 @@ export namespace api {
 	        this.content = source["content"];
 	        this.action_items = source["action_items"];
 	    }
-	}
-	export class AcceptActionItemResult {
-	    created: boolean;
-	    already_exists: boolean;
-	    task?: DailyTask;
-	    message?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new AcceptActionItemResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.created = source["created"];
-	        this.already_exists = source["already_exists"];
-	        this.task = this.convertValues(source["task"], DailyTask);
-	        this.message = source["message"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class LLMTestResponse {
 	    status: string;
@@ -498,3 +499,4 @@ export namespace api {
 	}
 
 }
+
