@@ -10,6 +10,7 @@ import (
 	"personal/internal/projects"
 	"personal/internal/stats"
 	"personal/internal/summaries"
+	"personal/internal/tasks"
 	"personal/internal/timer"
 	"personal/internal/timesessions"
 
@@ -49,6 +50,10 @@ func main() {
 	api.GET("/daily-tasks/:id", dailyTaskHandler.GetDailyTaskByID)
 	api.PUT("/daily-tasks/:id", dailyTaskHandler.UpdateDailyTask)
 	api.DELETE("/daily-tasks/:id", dailyTaskHandler.DeleteDailyTask)
+	taskRepo := tasks.NewRepository(mysqlDB)
+	taskService := tasks.NewService(taskRepo)
+	taskHandler := tasks.NewHandler(taskService)
+	api.POST("/tasks/estimate-preview", taskHandler.EstimatePreview)
 	timerRepo := timer.NewRepository(mysqlDB)
 	timerService := timer.NewService(timerRepo)
 	timerHandler := timer.NewHandler(timerService)

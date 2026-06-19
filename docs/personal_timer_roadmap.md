@@ -408,6 +408,7 @@ memory 如何召回：
 目标：
 
 - 创建任务时提示 estimated_minutes 是否过于乐观。
+- 后端提供确定性估时预览，不自动改用户输入。
 
 业务价值：
 
@@ -416,17 +417,21 @@ memory 如何召回：
 
 第一版规则：
 
-- 统计最近 N 次同项目任务。
-- 可选按相似标题做简单包含/关键词匹配。
-- 计算 `avg_actual_minutes`。
-- 计算 `overrun_rate`。
-- 如果 overrun_rate 高，建议调高估时或拆分任务。
-- 后端负责统计和判断，LLM 只负责解释，不负责直接决定。
+- 接口：`POST /api/tasks/estimate-preview`。
+- 输入：`project_id`、`title`、`estimated_minutes`。
+- 数据来源：最近 20 条同项目 `completed` 任务。
+- 实际耗时：优先 `actual_seconds_override > 0`，否则聚合 `time_sessions.duration_seconds`；转换分钟时使用向下取整。
+- 样本少于 3 条时返回 `risk_level = insufficient_data`。
+- 样本充足时计算 `avg_estimated_minutes`、`avg_actual_minutes`、`overrun_rate`。
+- `suggested_minutes` 使用平均实际分钟数向上取整到 5 分钟单位，且不低于用户输入。
+- 风险等级：输入估时低于平均实际耗时 70% 为 high，低于 90% 为 medium，否则 low。
+- 平均实际耗时达到 90 分钟时返回 `split_recommended = true`。
+- reason 由后端字符串规则生成，不调用 LLM。
 
 需要改：
 
 - 表：不改。
-- API：新增 estimate suggestion endpoint，或创建任务前查询建议。
+- API：新增 estimate preview endpoint。
 - UI：创建任务表单旁展示建议。
 
 不做：
@@ -434,6 +439,8 @@ memory 如何召回：
 - 不自动修改用户输入。
 - 不引入 NLP 依赖。
 - 不做复杂相似度模型。
+- 不按标题语义匹配。
+- 不接 LLM / Agent / RAG / 向量库。
 
 验收标准：
 
@@ -639,19 +646,19 @@ MySQL 足够。向量库等到需要模糊语义检索时再引入。
 
 规则：
 
-1. 查询最近 N 次同项目 completed 任务。
-2. 使用 `actual_seconds_override ?? session_seconds` 得到 actual_minutes。
-3. 计算 `avg_actual_minutes`。
-4. 计算 `overrun_rate = actual_minutes > estimated_minutes` 的比例。
-5. 如果 overrun_rate 高，返回建议：
-   - 调高估时。
-   - 拆分任务。
-   - 标记历史数据不足。
+1. 查询最近 20 次同项目 `completed` 任务。
+2. 使用 `actual_seconds_override > 0 ? actual_seconds_override : session_seconds` 得到 actual seconds。
+3. 使用向下取整得到 `actual_minutes`。
+4. 计算 `avg_estimated_minutes`、`avg_actual_minutes`。
+5. 计算 `overrun_rate = (avg_actual_minutes - avg_estimated_minutes) / avg_estimated_minutes`。
+6. 样本少于 3 条时返回 `insufficient_data`。
+7. 如果当前估时明显低于历史实际均值，返回调高估时建议。
+8. 如果 `avg_actual_minutes >= 90`，返回拆分建议。
 
 职责边界：
 
 - 后端负责统计和规则判断。
-- LLM 只负责解释建议，不负责直接决定分钟数。
+- 第一版不调用 LLM。
 - 用户最终决定 estimated_minutes。
 
 ## 风险预测设计草案
