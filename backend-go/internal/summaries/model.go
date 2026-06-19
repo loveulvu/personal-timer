@@ -50,6 +50,32 @@ type GenerateSummaryResult struct {
 	ActionItems json.RawMessage `json:"action_items,omitempty"`
 }
 
+type AcceptActionItemRequest struct {
+	TargetDate string `json:"target_date"`
+}
+
+type AcceptActionItemResult struct {
+	Created       bool               `json:"created"`
+	AlreadyExists bool               `json:"already_exists"`
+	Task          *AcceptedDailyTask `json:"task,omitempty"`
+	Message       string             `json:"message,omitempty"`
+}
+
+type AcceptedDailyTask struct {
+	ID               int64  `json:"id"`
+	ProjectID        int64  `json:"project_id"`
+	TaskDate         string `json:"task_date"`
+	Title            string `json:"title"`
+	EstimatedMinutes int    `json:"estimated_minutes"`
+	Status           string `json:"status"`
+}
+
+type summaryProjectRow struct {
+	ID               int64
+	Name             string
+	IncludeInSummary bool
+}
+
 type DailySummarySourceData struct {
 	SummaryType   string              `json:"summary_type"`
 	TargetDate    string              `json:"target_date"`

@@ -123,6 +123,10 @@ type GenerateWeeklySummaryRequest struct {
 	EndDate   string `json:"end_date"`
 }
 
+type AcceptActionItemRequest struct {
+	TargetDate string `json:"target_date"`
+}
+
 type FinishTaskRequest struct {
 	FinishNote        string `json:"finish_note"`
 	FinishDescription string `json:"finish_description"`
@@ -139,6 +143,13 @@ type GenerateSummaryResult struct {
 	SummaryID   int64  `json:"summary_id"`
 	Content     string `json:"content"`
 	ActionItems any    `json:"action_items,omitempty"`
+}
+
+type AcceptActionItemResult struct {
+	Created       bool       `json:"created"`
+	AlreadyExists bool       `json:"already_exists"`
+	Task          *DailyTask `json:"task,omitempty"`
+	Message       string     `json:"message,omitempty"`
 }
 
 type Summary struct {

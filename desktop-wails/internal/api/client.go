@@ -192,6 +192,16 @@ func (c *Client) DeleteSummary(ctx context.Context, id int64) error {
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
+func (c *Client) AcceptSummaryActionItem(ctx context.Context, summaryID int64, itemIndex int, targetDate string) (*AcceptActionItemResult, error) {
+	var result dataResponse[AcceptActionItemResult]
+	path := fmt.Sprintf("/api/summaries/%d/action-items/%d/accept", summaryID, itemIndex)
+	req := AcceptActionItemRequest{TargetDate: targetDate}
+	if err := c.doJSON(ctx, http.MethodPost, path, req, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
 func (c *Client) TestLLM(ctx context.Context) (*LLMTestResponse, error) {
 	var result LLMTestResponse
 	if err := c.doJSON(ctx, http.MethodPost, "/api/llm/test", nil, &result); err != nil {

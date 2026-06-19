@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -739,6 +740,72 @@ func countActionItems(items []SummaryActionItem, itemType, priority string) int 
 	return count
 }
 
+func TestAcceptActionItemCreatesTomorrowTask(t *testing.T) {
+	repo := acceptFakeRepo([]SummaryActionItem{{
+		Type: "schedule", Title: "明天补上算法练习", SuggestedProject: "算法练习", SuggestedMinutes: 45,
+	}})
+
+	result, err := (&Service{repo: repo}).AcceptActionItem(context.Background(), 7, 0, "2026-06-19")
+	if err != nil {
+		t.Fatalf("AcceptActionItem returned error: %v", err)
+	}
+	if !result.Created || result.AlreadyExists || result.Task == nil {
+		t.Fatalf("result = %+v, want created task", result)
+	}
+	if repo.createdTask.Title != "明天补上算法练习" || repo.createdTask.ProjectID != 11 || repo.createdTask.EstimatedMinutes != 45 {
+		t.Fatalf("created task = %+v, want action item fields", repo.createdTask)
+	}
+}
+
+func TestAcceptActionItemReturnsExistingTask(t *testing.T) {
+	repo := acceptFakeRepo([]SummaryActionItem{{
+		Type: "schedule", Title: "明天补上算法练习", SuggestedProject: "算法练习", SuggestedMinutes: 45,
+	}})
+	repo.existingTask = &AcceptedDailyTask{ID: 99, ProjectID: 11, TaskDate: "2026-06-19", Title: "明天补上算法练习", EstimatedMinutes: 45, Status: "planned"}
+
+	result, err := (&Service{repo: repo}).AcceptActionItem(context.Background(), 7, 0, "2026-06-19")
+	if err != nil {
+		t.Fatalf("AcceptActionItem returned error: %v", err)
+	}
+	if result.Created || !result.AlreadyExists || result.Task.ID != 99 || repo.createdTask != nil {
+		t.Fatalf("result = %+v createdTask=%+v, want existing without create", result, repo.createdTask)
+	}
+}
+
+func TestAcceptActionItemRejectsInvalidItemsAndInput(t *testing.T) {
+	tests := []struct {
+		name       string
+		items      []SummaryActionItem
+		index      int
+		targetDate string
+		project    *summaryProjectRow
+		wantErr    error
+	}{
+		{name: "cleanup", items: []SummaryActionItem{{Type: "cleanup", Title: "清理", SuggestedProject: "后端学习", SuggestedMinutes: 30}}, index: 0, targetDate: "2026-06-19", wantErr: ErrActionItemNotAcceptable},
+		{name: "missing project", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedMinutes: 30}}, index: 0, targetDate: "2026-06-19", wantErr: ErrActionItemNotAcceptable},
+		{name: "bad minutes", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "后端学习"}}, index: 0, targetDate: "2026-06-19", wantErr: ErrActionItemNotAcceptable},
+		{name: "project not found", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "不存在", SuggestedMinutes: 30}}, index: 0, targetDate: "2026-06-19", project: nil, wantErr: ErrActionItemProjectInvalid},
+		{name: "excluded project", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "吃饭", SuggestedMinutes: 30}}, index: 0, targetDate: "2026-06-19", project: &summaryProjectRow{ID: 12, Name: "吃饭"}, wantErr: ErrActionItemProjectInvalid},
+		{name: "null action items", items: nil, index: 0, targetDate: "2026-06-19", wantErr: ErrActionItemIndexInvalid},
+		{name: "index out of range", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "后端学习", SuggestedMinutes: 30}}, index: 3, targetDate: "2026-06-19", wantErr: ErrActionItemIndexInvalid},
+		{name: "bad date", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "后端学习", SuggestedMinutes: 30}}, index: 0, targetDate: "2026/06/19", wantErr: ErrActionItemTargetDateInvalid},
+		{name: "empty date", items: []SummaryActionItem{{Type: "schedule", Title: "补任务", SuggestedProject: "后端学习", SuggestedMinutes: 30}}, index: 0, targetDate: "", wantErr: ErrActionItemTargetDateInvalid},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := acceptFakeRepo(tt.items)
+			if tt.project != nil || tt.name == "project not found" {
+				repo.project = tt.project
+			}
+			_, err := (&Service{repo: repo}).AcceptActionItem(context.Background(), 7, tt.index, tt.targetDate)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func taskRow(date, project, status string, estimatedMinutes, sessionSeconds int, overrideSeconds *int, finishNote, finishDescription string) dailySummaryTaskRow {
 	row := dailySummaryTaskRow{
 		Date:              date,
@@ -820,6 +887,10 @@ type fakeSummaryRepo struct {
 	requestedSessionDates     []string
 	requestedTaskDateCalls    [][]string
 	requestedSessionDateCalls [][]string
+	summary                   *GeneratedSummary
+	project                   *summaryProjectRow
+	existingTask              *AcceptedDailyTask
+	createdTask               *AcceptedDailyTask
 }
 
 func (r *fakeSummaryRepo) CreateSummary(ctx context.Context, input CreateSummaryInput) (int64, error) {
@@ -836,6 +907,9 @@ func (r *fakeSummaryRepo) ListSummaries(ctx context.Context, summaryType string)
 }
 
 func (r *fakeSummaryRepo) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSummary, error) {
+	if r.summary != nil {
+		return r.summary, nil
+	}
 	return nil, nil
 }
 
@@ -875,6 +949,44 @@ func (r *fakeSummaryRepo) ListDailySummarySessions(ctx context.Context, dates []
 		}
 	}
 	return sessions, nil
+}
+
+func (r *fakeSummaryRepo) FindSummaryProjectByName(ctx context.Context, name string) (*summaryProjectRow, error) {
+	return r.project, nil
+}
+
+func (r *fakeSummaryRepo) FindAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string) (*AcceptedDailyTask, error) {
+	return r.existingTask, nil
+}
+
+func (r *fakeSummaryRepo) CreateAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string, estimatedMinutes int) (*AcceptedDailyTask, error) {
+	r.createdTask = &AcceptedDailyTask{
+		ID:               123,
+		ProjectID:        projectID,
+		TaskDate:         targetDate,
+		Title:            title,
+		EstimatedMinutes: estimatedMinutes,
+		Status:           "planned",
+	}
+	return r.createdTask, nil
+}
+
+func acceptFakeRepo(items []SummaryActionItem) *fakeSummaryRepo {
+	var actionItems json.RawMessage
+	if items != nil {
+		actionItems, _ = json.Marshal(items)
+	}
+	return &fakeSummaryRepo{
+		summary: &GeneratedSummary{
+			ID:          7,
+			SummaryType: "daily",
+			StartDate:   "2026-06-18",
+			EndDate:     "2026-06-18",
+			Content:     "ok",
+			ActionItems: actionItems,
+		},
+		project: &summaryProjectRow{ID: 11, Name: "算法练习", IncludeInSummary: true},
+	}
 }
 
 func dateSet(dates []string) map[string]bool {

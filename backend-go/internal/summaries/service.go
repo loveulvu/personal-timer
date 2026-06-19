@@ -21,10 +21,14 @@ import (
 const DailyRecentActiveDaysLimit = 5
 
 var (
-	ErrStatsQueryFailed     = errors.New("stats query failed")
-	ErrLLMGenerationFailed  = errors.New("LLM generation failed")
-	ErrSummaryPersistFailed = errors.New("summary persistence failed")
-	ErrSummaryAlreadyExists = errors.New("summary already exists")
+	ErrStatsQueryFailed            = errors.New("stats query failed")
+	ErrLLMGenerationFailed         = errors.New("LLM generation failed")
+	ErrSummaryPersistFailed        = errors.New("summary persistence failed")
+	ErrSummaryAlreadyExists        = errors.New("summary already exists")
+	ErrActionItemNotAcceptable     = errors.New("action item is not acceptable")
+	ErrActionItemIndexInvalid      = errors.New("action item index is invalid")
+	ErrActionItemProjectInvalid    = errors.New("action item project is not available")
+	ErrActionItemTargetDateInvalid = errors.New("target_date is invalid")
 )
 
 type summaryRepository interface {
@@ -36,6 +40,9 @@ type summaryRepository interface {
 	ListRecentDailyActiveDates(ctx context.Context, beforeDate string, limit int) ([]string, error)
 	ListDailySummaryTasks(ctx context.Context, dates []string) ([]dailySummaryTaskRow, error)
 	ListDailySummarySessions(ctx context.Context, dates []string) ([]dailySummarySessionRow, error)
+	FindSummaryProjectByName(ctx context.Context, name string) (*summaryProjectRow, error)
+	FindAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string) (*AcceptedDailyTask, error)
+	CreateAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string, estimatedMinutes int) (*AcceptedDailyTask, error)
 }
 
 type weeklyStatsProvider interface {
@@ -244,6 +251,65 @@ func (s *Service) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSumma
 
 func (s *Service) DeleteSummary(ctx context.Context, id int64) error {
 	return s.repo.DeleteSummary(ctx, id)
+}
+
+func (s *Service) AcceptActionItem(ctx context.Context, summaryID int64, itemIndex int, targetDate string) (*AcceptActionItemResult, error) {
+	if _, err := time.Parse("2006-01-02", targetDate); err != nil {
+		return nil, ErrActionItemTargetDateInvalid
+	}
+	if itemIndex < 0 {
+		return nil, ErrActionItemIndexInvalid
+	}
+	summary, err := s.repo.GetSummaryByID(ctx, summaryID)
+	if err != nil {
+		return nil, err
+	}
+	if summary == nil {
+		return nil, ErrSummaryNotFound
+	}
+
+	var items []SummaryActionItem
+	if len(summary.ActionItems) > 0 {
+		if err := json.Unmarshal(summary.ActionItems, &items); err != nil {
+			return nil, ErrActionItemIndexInvalid
+		}
+	}
+	if itemIndex >= len(items) {
+		return nil, ErrActionItemIndexInvalid
+	}
+
+	item := items[itemIndex]
+	if !isAcceptableActionItem(item) {
+		return nil, ErrActionItemNotAcceptable
+	}
+	project, err := s.repo.FindSummaryProjectByName(ctx, item.SuggestedProject)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil || !project.IncludeInSummary {
+		return nil, ErrActionItemProjectInvalid
+	}
+
+	task, err := s.repo.FindAcceptedDailyTask(ctx, targetDate, project.ID, item.Title)
+	if err != nil {
+		return nil, err
+	}
+	if task != nil {
+		return &AcceptActionItemResult{Created: false, AlreadyExists: true, Task: task, Message: "明日计划中已存在"}, nil
+	}
+
+	task, err = s.repo.CreateAcceptedDailyTask(ctx, targetDate, project.ID, item.Title, item.SuggestedMinutes)
+	if err != nil {
+		return nil, err
+	}
+	return &AcceptActionItemResult{Created: true, AlreadyExists: false, Task: task}, nil
+}
+
+func isAcceptableActionItem(item SummaryActionItem) bool {
+	return strings.TrimSpace(item.Title) != "" &&
+		strings.TrimSpace(item.SuggestedProject) != "" &&
+		item.SuggestedMinutes > 0 &&
+		item.Type != "cleanup"
 }
 
 func marshalSummaryActionItems(summaryType string, items []SummaryActionItem) json.RawMessage {

@@ -124,6 +124,13 @@ export type GenerateSummaryResult = {
   action_items?: SummaryActionItem[] | null
 }
 
+export type AcceptActionItemResult = {
+  created: boolean
+  already_exists: boolean
+  task?: DailyTask
+  message?: string
+}
+
 export type FinishTaskRequest = {
   finish_note: string
   finish_description: string
@@ -179,6 +186,8 @@ export const api = {
     AppBindings.GetSummaries(summaryType) as Promise<Summary[]>,
   getSummary: (id: number) => AppBindings.GetSummary(id) as Promise<Summary>,
   deleteSummary: (id: number) => AppBindings.DeleteSummary(id),
+  acceptSummaryActionItem: (summaryId: number, itemIndex: number, targetDate: string) =>
+    AppBindings.AcceptSummaryActionItem(summaryId, itemIndex, targetDate) as Promise<AcceptActionItemResult>,
   testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
 }
 import * as AppBindings from '../wailsjs/go/main/App'

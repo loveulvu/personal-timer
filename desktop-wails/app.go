@@ -81,6 +81,10 @@ func (a *App) DeleteSummary(id int64) error {
 	return a.client.DeleteSummary(a.ctx, id)
 }
 
+func (a *App) AcceptSummaryActionItem(summaryID int64, itemIndex int, targetDate string) (*api.AcceptActionItemResult, error) {
+	return a.client.AcceptSummaryActionItem(a.ctx, summaryID, itemIndex, targetDate)
+}
+
 func (a *App) TestLLM() (*api.LLMTestResponse, error) {
 	return a.client.TestLLM(a.ctx)
 }

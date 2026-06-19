@@ -346,6 +346,72 @@ func (r *Repository) GetSummaryByID(ctx context.Context, id int64) (*GeneratedSu
 	return &summary, nil
 }
 
+func (r *Repository) FindSummaryProjectByName(ctx context.Context, name string) (*summaryProjectRow, error) {
+	query := `
+		SELECT id, name, include_in_summary
+		FROM projects
+		WHERE name = ?
+	`
+	var project summaryProjectRow
+	err := r.db.QueryRowContext(ctx, query, name).Scan(&project.ID, &project.Name, &project.IncludeInSummary)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
+}
+
+func (r *Repository) FindAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string) (*AcceptedDailyTask, error) {
+	query := `
+		SELECT id, project_id, DATE_FORMAT(task_date, '%Y-%m-%d'), title, estimated_minutes, status
+		FROM daily_tasks
+		WHERE task_date = ? AND project_id = ? AND title = ?
+		ORDER BY id ASC
+		LIMIT 1
+	`
+	return r.acceptedDailyTaskByQuery(ctx, query, targetDate, projectID, title)
+}
+
+func (r *Repository) CreateAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string, estimatedMinutes int) (*AcceptedDailyTask, error) {
+	result, err := r.db.ExecContext(ctx, `
+		INSERT INTO daily_tasks (project_id, task_date, title, estimated_minutes)
+		VALUES (?, ?, ?, ?)
+	`, projectID, targetDate, title, estimatedMinutes)
+	if err != nil {
+		return nil, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	return r.acceptedDailyTaskByQuery(ctx, `
+		SELECT id, project_id, DATE_FORMAT(task_date, '%Y-%m-%d'), title, estimated_minutes, status
+		FROM daily_tasks
+		WHERE id = ?
+	`, id)
+}
+
+func (r *Repository) acceptedDailyTaskByQuery(ctx context.Context, query string, args ...any) (*AcceptedDailyTask, error) {
+	var task AcceptedDailyTask
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&task.ID,
+		&task.ProjectID,
+		&task.TaskDate,
+		&task.Title,
+		&task.EstimatedMinutes,
+		&task.Status,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
 func rawJSONOrNil(value string) json.RawMessage {
 	if !json.Valid([]byte(value)) {
 		return nil

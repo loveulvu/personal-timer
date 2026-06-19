@@ -130,6 +130,50 @@ func (h *Handler) GetSummaryByID(c *gin.Context) {
 	})
 }
 
+func (h *Handler) AcceptActionItem(c *gin.Context) {
+	summaryID, err := strconv.ParseInt(c.Param("summary_id"), 10, 64)
+	if err != nil || summaryID <= 0 {
+		writeError(c, 400, "invalid summary id")
+		return
+	}
+	itemIndex, err := strconv.Atoi(c.Param("item_index"))
+	if err != nil || itemIndex < 0 {
+		writeError(c, 400, "invalid action item index")
+		return
+	}
+	var req AcceptActionItemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, 400, "invalid json")
+		return
+	}
+	if req.TargetDate == "" {
+		writeError(c, 400, "target_date is required")
+		return
+	}
+
+	result, err := h.service.AcceptActionItem(c.Request.Context(), summaryID, itemIndex, req.TargetDate)
+	if errors.Is(err, ErrSummaryNotFound) {
+		writeError(c, 404, err.Error())
+		return
+	}
+	if errors.Is(err, ErrActionItemIndexInvalid) ||
+		errors.Is(err, ErrActionItemNotAcceptable) ||
+		errors.Is(err, ErrActionItemProjectInvalid) ||
+		errors.Is(err, ErrActionItemTargetDateInvalid) {
+		writeError(c, 400, err.Error())
+		return
+	}
+	if err != nil {
+		writeError(c, 500, "accept action item failed")
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"data":   result,
+	})
+}
+
 func (h *Handler) DeleteSummary(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

@@ -8,6 +8,7 @@ import { errorMessage, valueLabel } from './utils/labels'
 
 type Props = { connected: boolean }
 type SummaryFilter = '' | 'daily' | 'weekly'
+type AcceptStatus = { loading?: boolean; text?: string; error?: string }
 
 export function SummariesPage({ connected }: Props) {
   const today = dayjs()
@@ -17,6 +18,7 @@ export function SummariesPage({ connected }: Props) {
   const [summaries, setSummaries] = useState<Summary[]>([])
   const [detail, setDetail] = useState<Summary | null>(null)
   const [generated, setGenerated] = useState<GenerateSummaryResult | null>(null)
+  const [accepted, setAccepted] = useState<Record<string, AcceptStatus>>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -55,6 +57,17 @@ export function SummariesPage({ connected }: Props) {
     })
   }
 
+  async function acceptActionItem(summaryId: number, itemIndex: number) {
+    const key = acceptKey(summaryId, itemIndex)
+    setAccepted((current) => ({ ...current, [key]: { loading: true } }))
+    try {
+      const result = await api.acceptSummaryActionItem(summaryId, itemIndex, dayjs().add(1, 'day').format('YYYY-MM-DD'))
+      setAccepted((current) => ({ ...current, [key]: { text: result.already_exists ? '明日计划已存在' : '已采纳' } }))
+    } catch (err) {
+      setAccepted((current) => ({ ...current, [key]: { error: errorMessage(err) } }))
+    }
+  }
+
   useEffect(() => { if (connected) loadSummaries(filter) }, [connected, filter])
 
   const columns = [
@@ -75,7 +88,7 @@ export function SummariesPage({ connected }: Props) {
       <Card title="生成每周总结"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>生成每周总结</Button></Space></Card>
     </div>
 
-    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph><ActionItems items={generated.action_items} /></Card>}
+    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph><ActionItems summaryId={generated.summary_id} items={generated.action_items} accepted={accepted} onAccept={acceptActionItem} /></Card>}
 
     <Card title="总结列表" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: '全部' }, { value: 'daily', label: '每日' }, { value: 'weekly', label: '每周' }]} />}>
       <Table rowKey="id" loading={loading} dataSource={summaries} columns={columns} pagination={{ pageSize: 8 }} />
@@ -91,30 +104,38 @@ export function SummariesPage({ connected }: Props) {
         ]} />
         <Typography.Title level={5}>内容</Typography.Title>
         <pre className="content-block">{detail.content}</pre>
-        <ActionItems items={detail.action_items} />
+        <ActionItems summaryId={detail.id} items={detail.action_items} accepted={accepted} onAccept={acceptActionItem} />
         {detail.source_data !== undefined && <><Typography.Title level={5}>源数据</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
       </>}
     </Modal>
   </div>
 }
 
-function ActionItems({ items }: { items?: SummaryActionItem[] | null }) {
+function ActionItems({ summaryId, items, accepted, onAccept }: { summaryId: number; items?: SummaryActionItem[] | null; accepted: Record<string, AcceptStatus>; onAccept: (summaryId: number, itemIndex: number) => void }) {
   const actionItems = normalizeActionItems(items)
   if (actionItems.length === 0) return null
   return <div>
     <Typography.Title level={5}>行动建议</Typography.Title>
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {actionItems.map((item, index) => <div key={`${item.type}-${item.title}-${index}`}>
+      {actionItems.map((item, index) => {
+        const status = accepted[acceptKey(summaryId, index)]
+        return <div key={`${item.type}-${item.title}-${index}`}>
         <Space wrap>
           <Tag>{priorityLabel(item.priority)}</Tag>
           <Tag>{typeLabel(item.type)}</Tag>
           <Typography.Text strong>{item.title}</Typography.Text>
+          {isAcceptableActionItem(item) && <Button size="small" loading={status?.loading} disabled={Boolean(status?.text)} onClick={() => onAccept(summaryId, index)}>
+            {status?.loading ? '采纳中...' : '采纳到明日计划'}
+          </Button>}
+          {status?.text && <Tag color="green">{status.text}</Tag>}
         </Space>
         {item.reason && <Typography.Paragraph style={{ margin: '6px 0 0' }}>原因：{item.reason}</Typography.Paragraph>}
         {(item.suggested_project || item.suggested_minutes) && <Typography.Text type="secondary">
           建议：{[item.suggested_project, item.suggested_minutes ? `${item.suggested_minutes} 分钟` : ''].filter(Boolean).join('，')}
         </Typography.Text>}
-      </div>)}
+        {status?.error && <Typography.Paragraph type="danger" style={{ margin: '6px 0 0' }}>{status.error}</Typography.Paragraph>}
+      </div>
+      })}
     </Space>
   </div>
 }
@@ -133,6 +154,14 @@ function priorityLabel(priority: string) {
 
 function typeLabel(type: string) {
   return ({ schedule: '安排任务', consistency: '保持连续性', estimation: '估时校准', split_task: '拆分任务', focus_topic: '聚焦复习', cleanup: '清理数据' } as Record<string, string>)[type] ?? type
+}
+
+function isAcceptableActionItem(item: SummaryActionItem) {
+  return Boolean(item.title && item.suggested_project && item.suggested_minutes && item.suggested_minutes > 0 && item.type !== 'cleanup')
+}
+
+function acceptKey(summaryId: number, itemIndex: number) {
+  return `${summaryId}:${itemIndex}`
 }
 
 function preview(content: string) { return content.length > 140 ? `${content.slice(0, 140)}...` : content }
