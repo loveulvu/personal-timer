@@ -101,6 +101,18 @@ func (c *Client) EstimateTaskPreview(ctx context.Context, req EstimatePreviewReq
 	return &result.Data, nil
 }
 
+func (c *Client) GetPlanRisk(ctx context.Context, date string) (*PlanRiskResponse, error) {
+	path := "/api/plans/risk"
+	if date != "" {
+		path += "?date=" + url.QueryEscape(date)
+	}
+	var result dataResponse[PlanRiskResponse]
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
 func (c *Client) GetProjects(ctx context.Context) ([]Project, error) {
 	var result dataResponse[[]Project]
 	if err := c.doJSON(ctx, http.MethodGet, "/api/projects", nil, &result); err != nil {

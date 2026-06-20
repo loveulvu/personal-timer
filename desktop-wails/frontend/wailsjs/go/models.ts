@@ -294,6 +294,32 @@ export namespace api {
 	        this.message = source["message"];
 	    }
 	}
+	export class PlanRiskResponse {
+	    date: string;
+	    planned_total_minutes: number;
+	    recent_avg_actual_minutes: number;
+	    recent_active_days: number;
+	    plan_ratio: number;
+	    risk_level: string;
+	    reason: string;
+	    suggestions: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PlanRiskResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.date = source["date"];
+	        this.planned_total_minutes = source["planned_total_minutes"];
+	        this.recent_avg_actual_minutes = source["recent_avg_actual_minutes"];
+	        this.recent_active_days = source["recent_active_days"];
+	        this.plan_ratio = source["plan_ratio"];
+	        this.risk_level = source["risk_level"];
+	        this.reason = source["reason"];
+	        this.suggestions = source["suggestions"];
+	    }
+	}
 	export class Project {
 	    id: number;
 	    name: string;

@@ -2,8 +2,9 @@ import { PauseCircleOutlined, PlayCircleOutlined, StopOutlined } from '@ant-desi
 import { Alert, Button, Calendar, Card, DatePicker, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
-import { api, DailyTask, Project } from './api'
+import { api, DailyTask, PlanRiskResponse, Project } from './api'
 import { EstimatePreviewPanel } from './components/EstimatePreviewPanel'
+import { PlanRiskPanel } from './components/PlanRiskPanel'
 import { StatusTag } from './components/StatusTag'
 import { TaskCompletionModal } from './features/dashboard/TaskCompletionModal'
 import { errorMessage, timerActionLabel } from './utils/labels'
@@ -18,6 +19,9 @@ export function TodayPage({ connected, openProjects }: Props) {
   const [loading, setLoading] = useState(false)
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [planRisk, setPlanRisk] = useState<PlanRiskResponse | null>(null)
+  const [planRiskLoading, setPlanRiskLoading] = useState(false)
+  const [planRiskError, setPlanRiskError] = useState('')
   const [completionTask, setCompletionTask] = useState<DailyTask | null>(null)
   const [form] = Form.useForm<TaskForm>()
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
@@ -50,6 +54,20 @@ export function TodayPage({ connected, openProjects }: Props) {
     }
   }
 
+  async function loadPlanRisk(selectedDate = date) {
+    if (!connected) return
+    setPlanRiskLoading(true)
+    setPlanRiskError('')
+    try {
+      setPlanRisk(await api.getPlanRisk(selectedDate))
+    } catch {
+      setPlanRisk(null)
+      setPlanRiskError('今日计划风险加载失败。')
+    } finally {
+      setPlanRiskLoading(false)
+    }
+  }
+
   async function createTask(values: TaskForm) {
     if (projects.length === 0) return setError('暂无项目，请先创建项目')
     setLoading(true)
@@ -63,6 +81,7 @@ export function TodayPage({ connected, openProjects }: Props) {
       })
       form.setFieldsValue({ title: '', estimatedMinutes: 25 })
       await loadTasks(date)
+      await loadPlanRisk(date)
       message.success('每日任务创建成功')
     } catch (err) {
       setError(errorMessage(err))
@@ -93,6 +112,7 @@ export function TodayPage({ connected, openProjects }: Props) {
 
   useEffect(() => { if (connected) loadProjects() }, [connected])
   useEffect(() => { if (connected) loadTasks(date) }, [connected, date])
+  useEffect(() => { if (connected) loadPlanRisk(date) }, [connected, date])
 
   const columns = [
     { title: '任务标题', dataIndex: 'title', key: 'title' },
@@ -133,6 +153,7 @@ export function TodayPage({ connected, openProjects }: Props) {
           </Form>
         </Card>
       </div>
+      <PlanRiskPanel risk={planRisk} loading={planRiskLoading} error={planRiskError} />
       <Card title={<Space><Typography.Text strong>每日任务</Typography.Text><DatePicker value={dayjs(date)} onChange={(value: Dayjs | null) => value && setDate(value.format('YYYY-MM-DD'))} /></Space>}>
         <Table rowKey="id" loading={loading} dataSource={tasks} columns={columns} pagination={false} locale={{ emptyText: '当天暂无任务' }} />
       </Card>

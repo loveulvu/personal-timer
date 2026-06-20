@@ -46,6 +46,10 @@ export function GetDailyStats(arg1) {
   return window['go']['main']['App']['GetDailyStats'](arg1);
 }
 
+export function GetPlanRisk(arg1) {
+  return window['go']['main']['App']['GetPlanRisk'](arg1);
+}
+
 export function GetProject(arg1) {
   return window['go']['main']['App']['GetProject'](arg1);
 }

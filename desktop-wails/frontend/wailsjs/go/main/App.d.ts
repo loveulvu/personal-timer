@@ -24,6 +24,8 @@ export function GenerateWeeklySummary(arg1:string,arg2:string):Promise<api.Gener
 
 export function GetDailyStats(arg1:string):Promise<api.DailyStats>;
 
+export function GetPlanRisk(arg1:string):Promise<api.PlanRiskResponse>;
+
 export function GetProject(arg1:number):Promise<api.Project>;
 
 export function GetProjects():Promise<Array<api.Project>>;

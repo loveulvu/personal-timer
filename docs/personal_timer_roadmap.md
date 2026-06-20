@@ -453,6 +453,7 @@ memory 如何召回：
 目标：
 
 - 用户制定今日计划时，提示计划总量是否明显超过近期能力。
+- 事前判断当天计划是否过载，只做风险提示，不自动修改任务。
 
 业务价值：
 
@@ -462,20 +463,27 @@ memory 如何召回：
 第一版规则：
 
 ```text
-planned_total_minutes > recent_avg_minutes * 1.4 => high risk
-planned_total_minutes > recent_avg_minutes * 1.2 => medium risk
+planned_total_minutes / recent_avg_actual_minutes > 1.4 => high risk
+planned_total_minutes / recent_avg_actual_minutes > 1.2 => medium risk
 otherwise => low risk
 ```
 
 比较数据：
 
-- 今日计划总分钟数。
-- 最近 7 / 14 天平均有效学习分钟数。
+- 今日 `include_in_summary=true` 项目的计划总分钟数。
+- 目标日期之前最近 5 个 active days 的平均实际学习分钟数。
+
+数据来源：
+
+- `daily_tasks.estimated_minutes` 计算今日计划总量。
+- `daily_tasks.actual_seconds_override > 0` 优先，否则聚合 `time_sessions.duration_seconds`。
+- `projects.include_in_summary = true` 才纳入学习计划风险。
+- 最近 active days 不包含目标日期当天。
 
 需要改：
 
 - 表：不改。
-- API：新增 daily plan risk endpoint。
+- API：新增 `GET /api/plans/risk?date=YYYY-MM-DD`。
 - UI：今日任务页展示 risk badge 和简短原因。
 
 不做：
@@ -483,6 +491,10 @@ otherwise => low risk
 - 不阻止用户创建任务。
 - 不做复杂日历预测。
 - 不把 life/break 项目计入学习能力。
+- 不调用 LLM。
+- 不考虑任务难度。
+- 不考虑用户当天可用时间。
+- 不做自动调度。
 
 验收标准：
 

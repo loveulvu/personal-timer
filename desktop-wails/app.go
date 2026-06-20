@@ -37,6 +37,10 @@ func (a *App) EstimateTaskPreview(req api.EstimatePreviewRequest) (*api.Estimate
 	return a.client.EstimateTaskPreview(a.ctx, req)
 }
 
+func (a *App) GetPlanRisk(date string) (*api.PlanRiskResponse, error) {
+	return a.client.GetPlanRisk(a.ctx, date)
+}
+
 func (a *App) GetProjects() ([]api.Project, error) {
 	return a.client.GetProjects(a.ctx)
 }

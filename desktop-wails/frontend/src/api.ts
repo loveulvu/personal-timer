@@ -62,6 +62,19 @@ export type EstimatePreviewResponse = {
   reason: string
 }
 
+export type PlanRiskLevel = 'insufficient_data' | 'low' | 'medium' | 'high'
+
+export type PlanRiskResponse = {
+  date: string
+  planned_total_minutes: number
+  recent_avg_actual_minutes: number
+  recent_active_days: number
+  plan_ratio: number
+  risk_level: PlanRiskLevel
+  reason: string
+  suggestions: string[]
+}
+
 export type Project = {
   id: number
   name: string
@@ -185,6 +198,8 @@ export const api = {
     AppBindings.CreateDailyTask(request) as Promise<{ id: number }>,
   estimateTaskPreview: (request: EstimatePreviewRequest) =>
     AppBindings.EstimateTaskPreview({ ...request, title: request.title ?? '' }) as Promise<EstimatePreviewResponse>,
+  getPlanRisk: (date?: string) =>
+    AppBindings.GetPlanRisk(date ?? '') as Promise<PlanRiskResponse>,
   startTask: (id: number) => AppBindings.StartTask(id),
   pauseTask: (id: number) => AppBindings.PauseTask(id),
   resumeTask: (id: number) => AppBindings.ResumeTask(id),

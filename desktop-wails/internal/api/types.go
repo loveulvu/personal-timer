@@ -64,6 +64,17 @@ type EstimatePreviewResponse struct {
 	Reason                string  `json:"reason"`
 }
 
+type PlanRiskResponse struct {
+	Date                   string   `json:"date"`
+	PlannedTotalMinutes    int      `json:"planned_total_minutes"`
+	RecentAvgActualMinutes int      `json:"recent_avg_actual_minutes"`
+	RecentActiveDays       int      `json:"recent_active_days"`
+	PlanRatio              float64  `json:"plan_ratio"`
+	RiskLevel              string   `json:"risk_level"`
+	Reason                 string   `json:"reason"`
+	Suggestions            []string `json:"suggestions"`
+}
+
 type CreateResponse struct {
 	ID int64 `json:"id"`
 }

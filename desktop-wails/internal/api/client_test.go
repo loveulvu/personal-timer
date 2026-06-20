@@ -66,6 +66,25 @@ func TestEstimateTaskPreviewUsesRouteAndReturnsData(t *testing.T) {
 	}
 }
 
+func TestGetPlanRiskUsesDateQueryAndReturnsData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/plans/risk" || r.URL.Query().Get("date") != "2026-06-20" {
+			t.Fatalf("unexpected request: %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"date":"2026-06-20","planned_total_minutes":360,"recent_avg_actual_minutes":220,"recent_active_days":5,"plan_ratio":1.64,"risk_level":"high","reason":"ok","suggestions":["a"]}}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).GetPlanRisk(context.Background(), "2026-06-20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RiskLevel != "high" || result.PlanRatio != 1.64 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

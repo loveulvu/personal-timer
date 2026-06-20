@@ -7,6 +7,7 @@ import (
 	"personal/internal/handler"
 	"personal/internal/llm"
 	"personal/internal/memories"
+	"personal/internal/plans"
 	"personal/internal/projects"
 	"personal/internal/stats"
 	"personal/internal/summaries"
@@ -54,6 +55,10 @@ func main() {
 	taskService := tasks.NewService(taskRepo)
 	taskHandler := tasks.NewHandler(taskService)
 	api.POST("/tasks/estimate-preview", taskHandler.EstimatePreview)
+	planRepo := plans.NewRepository(mysqlDB)
+	planService := plans.NewService(planRepo)
+	planHandler := plans.NewHandler(planService)
+	api.GET("/plans/risk", planHandler.GetPlanRisk)
 	timerRepo := timer.NewRepository(mysqlDB)
 	timerService := timer.NewService(timerRepo)
 	timerHandler := timer.NewHandler(timerService)
