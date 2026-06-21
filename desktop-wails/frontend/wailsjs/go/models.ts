@@ -338,6 +338,46 @@ export namespace api {
 	        this.message = source["message"];
 	    }
 	}
+	export class MemoryListItem {
+	    id: number;
+	    memory_type: string;
+	    scope_type: string;
+	    project_id?: number;
+	    project_name?: string;
+	    title: string;
+	    content: string;
+	    confidence: number;
+	    support_count: number;
+	    contradiction_count: number;
+	    status: string;
+	    first_seen_at: string;
+	    last_seen_at: string;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MemoryListItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.memory_type = source["memory_type"];
+	        this.scope_type = source["scope_type"];
+	        this.project_id = source["project_id"];
+	        this.project_name = source["project_name"];
+	        this.title = source["title"];
+	        this.content = source["content"];
+	        this.confidence = source["confidence"];
+	        this.support_count = source["support_count"];
+	        this.contradiction_count = source["contradiction_count"];
+	        this.status = source["status"];
+	        this.first_seen_at = source["first_seen_at"];
+	        this.last_seen_at = source["last_seen_at"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
 	export class PlanRiskResponse {
 	    date: string;
 	    planned_total_minutes: number;

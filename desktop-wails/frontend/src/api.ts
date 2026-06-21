@@ -95,6 +95,28 @@ export type FeedbackResponse = {
   created_at: string
 }
 
+export type MemoryStatus = 'active' | 'archived'
+
+export type MemoryListStatusFilter = MemoryStatus | 'all'
+
+export type MemoryListItem = {
+  id: number
+  memory_type: string
+  scope_type: string
+  project_id?: number | null
+  project_name?: string | null
+  title: string
+  content: string
+  confidence: number
+  support_count: number
+  contradiction_count: number
+  status: MemoryStatus
+  first_seen_at: string
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -254,6 +276,8 @@ export const api = {
       feedback_note: request.feedback_note ?? '',
       ...(request.target_index == null ? {} : { target_index: request.target_index }),
     }) as Promise<FeedbackResponse>,
+  listMemories: (status?: MemoryListStatusFilter, memoryType?: string, limit?: number) =>
+    AppBindings.ListMemories(status ?? '', memoryType ?? '', limit ?? 0) as Promise<MemoryListItem[]>,
   testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
 }
 import * as AppBindings from '../wailsjs/go/main/App'

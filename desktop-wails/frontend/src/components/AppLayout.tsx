@@ -1,6 +1,7 @@
 import {
   BarChartOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   FileTextOutlined,
   FolderOutlined,
   ReloadOutlined,
@@ -12,7 +13,7 @@ import { StartupStatus } from '../api'
 import { errorMessage } from '../utils/labels'
 import { StatusBar } from './StatusBar'
 
-export type Page = 'dashboard' | 'projects' | 'stats' | 'summaries'
+export type Page = 'dashboard' | 'projects' | 'stats' | 'summaries' | 'memories'
 
 type AppLayoutProps = {
   page: Page
@@ -57,6 +58,7 @@ export function AppLayout({
             { key: 'projects', icon: <FolderOutlined />, label: '项目' },
             { key: 'stats', icon: <BarChartOutlined />, label: '统计' },
             { key: 'summaries', icon: <FileTextOutlined />, label: '总结' },
+            { key: 'memories', icon: <DatabaseOutlined />, label: '记忆' },
           ]}
         />
         <div className="sidebar-footer">

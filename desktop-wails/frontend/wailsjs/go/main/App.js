@@ -78,6 +78,10 @@ export function ListDailyTasks(arg1) {
   return window['go']['main']['App']['ListDailyTasks'](arg1);
 }
 
+export function ListMemories(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListMemories'](arg1, arg2, arg3);
+}
+
 export function PauseTask(arg1) {
   return window['go']['main']['App']['PauseTask'](arg1);
 }

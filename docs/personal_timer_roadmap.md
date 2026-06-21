@@ -781,3 +781,46 @@ otherwise => low
 - 不让 LLM 提取 memory。
 - 不做向量库、RAG 或 Agent。
 - 不做 memory 管理 UI 或 feedback。
+
+## V10 Memory Management UI V1
+
+目标：
+- 让用户能查看系统已经沉淀的长期学习记忆。
+- 让用户能对 memory 提交反馈，用于 V9 的 confidence / support_count / contradiction_count 调整。
+
+接口：
+- `GET /api/memories`
+- Query: `status=active|archived|all`，默认 `active`。
+- Query: `memory_type` 可选。
+- Query: `limit` 默认 50，最大 100。
+
+返回字段：
+- `id`
+- `memory_type`
+- `scope_type`
+- `project_id`
+- `project_name`
+- `title`
+- `content`
+- `confidence`
+- `support_count`
+- `contradiction_count`
+- `status`
+- `first_seen_at`
+- `last_seen_at`
+- `created_at`
+- `updated_at`
+
+前端：
+- 新增 Memory 页面。
+- 支持 `active` / `archived` / `all` 状态筛选。
+- 每条 memory 展示标题、类型、范围、项目、置信度、支持次数、冲突次数、状态、最近出现时间和内容。
+- 每条 memory 可提交 `correct` / `wrong` / `outdated` / `too_broad` 反馈。
+
+当前限制：
+- 不编辑 memory。
+- 不删除 memory。
+- 不调用 LLM 改写 memory。
+- 不做复杂搜索。
+- 不引入 Agent / LangChain / RAG / 向量库。
+- UI 查询接口和 Summary Memory Recall 查询保持分离，Recall 仍使用 active + confidence 过滤。

@@ -9,10 +9,29 @@ import (
 
 type Handler struct {
 	extractor *Extractor
+	repo      *Repository
 }
 
-func NewHandler(extractor *Extractor) *Handler {
-	return &Handler{extractor: extractor}
+func NewHandler(extractor *Extractor, repo *Repository) *Handler {
+	return &Handler{extractor: extractor, repo: repo}
+}
+
+func (h *Handler) ListMemories(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	items, err := h.repo.ListMemoriesForUI(c.Request.Context(), ListMemoryItemsFilter{
+		Status:     c.DefaultQuery("status", "active"),
+		MemoryType: c.Query("memory_type"),
+		Limit:      limit,
+	})
+	if errors.Is(err, ErrInvalidMemoryInput) {
+		c.JSON(400, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"status": "error", "message": "list memories failed"})
+		return
+	}
+	c.JSON(200, gin.H{"status": "ok", "data": items})
 }
 
 func (h *Handler) ExtractSummary(c *gin.Context) {

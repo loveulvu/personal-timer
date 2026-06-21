@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { api, StartupStatus } from './api'
 import { AppLayout, Page } from './components/AppLayout'
 import { DashboardPage } from './features/dashboard/DashboardPage'
+import { MemoriesPage } from './MemoriesPage'
 import { ProjectsPage } from './ProjectsPage'
 import { StatsPage } from './StatsPage'
 import { SummariesPage } from './SummariesPage'
@@ -71,6 +72,7 @@ function App() {
         {page === 'projects' && <ProjectsPage connected={connected} />}
         {page === 'stats' && <StatsPage connected={connected} />}
         {page === 'summaries' && <SummariesPage connected={connected} />}
+        {page === 'memories' && <MemoriesPage connected={connected} />}
       </AppLayout>
     </ConfigProvider>
   )

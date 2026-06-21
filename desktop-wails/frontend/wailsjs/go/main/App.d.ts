@@ -40,6 +40,8 @@ export function GetWeeklyStats(arg1:string,arg2:string):Promise<api.WeeklyStats>
 
 export function ListDailyTasks(arg1:string):Promise<Array<api.DailyTask>>;
 
+export function ListMemories(arg1:string,arg2:string,arg3:number):Promise<Array<api.MemoryListItem>>;
+
 export function PauseTask(arg1:number):Promise<void>;
 
 export function ResumeTask(arg1:number):Promise<void>;

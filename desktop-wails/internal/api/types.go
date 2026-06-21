@@ -93,6 +93,24 @@ type FeedbackResponse struct {
 	CreatedAt     string `json:"created_at"`
 }
 
+type MemoryListItem struct {
+	ID                 int64   `json:"id"`
+	MemoryType         string  `json:"memory_type"`
+	ScopeType          string  `json:"scope_type"`
+	ProjectID          *int64  `json:"project_id"`
+	ProjectName        *string `json:"project_name"`
+	Title              string  `json:"title"`
+	Content            string  `json:"content"`
+	Confidence         float64 `json:"confidence"`
+	SupportCount       int     `json:"support_count"`
+	ContradictionCount int     `json:"contradiction_count"`
+	Status             string  `json:"status"`
+	FirstSeenAt        string  `json:"first_seen_at"`
+	LastSeenAt         string  `json:"last_seen_at"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
+}
+
 type CreateResponse struct {
 	ID int64 `json:"id"`
 }

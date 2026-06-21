@@ -117,6 +117,28 @@ func TestSubmitFeedbackUsesRouteAndJSON(t *testing.T) {
 	}
 }
 
+func TestListMemoriesUsesQueryAndReturnsData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/memories" ||
+			r.URL.Query().Get("status") != "archived" ||
+			r.URL.Query().Get("memory_type") != "estimate_bias" ||
+			r.URL.Query().Get("limit") != "25" {
+			t.Fatalf("unexpected request: %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":1,"memory_type":"estimate_bias","scope_type":"project","project_id":2,"project_name":"Backend","title":"t","content":"c","confidence":0.7,"support_count":2,"contradiction_count":1,"status":"archived","first_seen_at":"2026-06-19T00:00:00Z","last_seen_at":"2026-06-20T00:00:00Z","created_at":"2026-06-19T00:00:00Z","updated_at":"2026-06-20T00:00:00Z"}]}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).ListMemories(context.Background(), "archived", "estimate_bias", 25)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].ProjectName == nil || *result[0].ProjectName != "Backend" {
+		t.Fatalf("unexpected memories: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

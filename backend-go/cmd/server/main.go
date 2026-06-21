@@ -102,7 +102,8 @@ func main() {
 	api.GET("/summaries/:id", summaryHandler.GetSummaryByID)
 	api.POST("/summaries/:summary_id/action-items/:item_index/accept", summaryHandler.AcceptActionItem)
 	api.DELETE("/summaries/:id", summaryHandler.DeleteSummary)
-	memoryHandler := memories.NewHandler(memoryExtractor)
+	memoryHandler := memories.NewHandler(memoryExtractor, memoryRepo)
+	api.GET("/memories", memoryHandler.ListMemories)
 	api.POST("/memories/extract/summary/:summary_id", memoryHandler.ExtractSummary)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)

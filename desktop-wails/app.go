@@ -45,6 +45,10 @@ func (a *App) SubmitFeedback(req api.FeedbackRequest) (*api.FeedbackResponse, er
 	return a.client.SubmitFeedback(a.ctx, req)
 }
 
+func (a *App) ListMemories(status string, memoryType string, limit int) ([]api.MemoryListItem, error) {
+	return a.client.ListMemories(a.ctx, status, memoryType, limit)
+}
+
 func (a *App) GetProjects() ([]api.Project, error) {
 	return a.client.GetProjects(a.ctx)
 }

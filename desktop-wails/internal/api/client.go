@@ -121,6 +121,28 @@ func (c *Client) SubmitFeedback(ctx context.Context, req FeedbackRequest) (*Feed
 	return &result.Data, nil
 }
 
+func (c *Client) ListMemories(ctx context.Context, status, memoryType string, limit int) ([]MemoryListItem, error) {
+	values := url.Values{}
+	if status != "" {
+		values.Set("status", status)
+	}
+	if memoryType != "" {
+		values.Set("memory_type", memoryType)
+	}
+	if limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	path := "/api/memories"
+	if encoded := values.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	var result dataResponse[[]MemoryListItem]
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Data, nil
+}
+
 func (c *Client) GetProjects(ctx context.Context) ([]Project, error) {
 	var result dataResponse[[]Project]
 	if err := c.doJSON(ctx, http.MethodGet, "/api/projects", nil, &result); err != nil {

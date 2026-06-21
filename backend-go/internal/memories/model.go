@@ -23,6 +23,24 @@ type StudyMemory struct {
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
+type MemoryListItem struct {
+	ID                 int64     `json:"id"`
+	MemoryType         string    `json:"memory_type"`
+	ScopeType          string    `json:"scope_type"`
+	ProjectID          *int64    `json:"project_id,omitempty"`
+	ProjectName        *string   `json:"project_name,omitempty"`
+	Title              string    `json:"title"`
+	Content            string    `json:"content"`
+	Confidence         float64   `json:"confidence"`
+	SupportCount       int       `json:"support_count"`
+	ContradictionCount int       `json:"contradiction_count"`
+	Status             string    `json:"status"`
+	FirstSeenAt        time.Time `json:"first_seen_at"`
+	LastSeenAt         time.Time `json:"last_seen_at"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
 type StudyMemoryEvidence struct {
 	ID           int64     `json:"id"`
 	MemoryID     int64     `json:"memory_id"`
@@ -74,6 +92,12 @@ type ListMemoriesFilter struct {
 	ScopeType  string
 	ProjectID  *int64
 	Status     string
+	Limit      int
+}
+
+type ListMemoryItemsFilter struct {
+	Status     string
+	MemoryType string
 	Limit      int
 }
 

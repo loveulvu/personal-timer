@@ -12,6 +12,7 @@ import (
 const (
 	defaultListLimit = 50
 	maxListLimit     = 200
+	maxUIListLimit   = 100
 )
 
 var (
@@ -151,6 +152,69 @@ func (r *Repository) ListMemories(ctx context.Context, filter ListMemoriesFilter
 		return nil, err
 	}
 	return memories, nil
+}
+
+func (r *Repository) ListMemoriesForUI(ctx context.Context, filter ListMemoryItemsFilter) ([]MemoryListItem, error) {
+	filter, allStatuses, err := normalizeMemoryItemsFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	conditions := make([]string, 0)
+	args := make([]any, 0)
+	if !allStatuses {
+		conditions = append(conditions, "m.status = ?")
+		args = append(args, filter.Status)
+	}
+	if filter.MemoryType != "" {
+		conditions = append(conditions, "m.memory_type = ?")
+		args = append(args, filter.MemoryType)
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+	}
+	args = append(args, filter.Limit)
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT m.id, m.memory_type, m.scope_type, m.project_id, p.name AS project_name,
+			m.title, m.content, m.confidence, m.support_count, m.contradiction_count,
+			m.status, m.first_seen_at, m.last_seen_at, m.created_at, m.updated_at
+		FROM study_memories m
+		LEFT JOIN projects p ON p.id = m.project_id
+		`+where+`
+		ORDER BY m.last_seen_at DESC, m.id DESC
+		LIMIT ?
+	`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]MemoryListItem, 0)
+	for rows.Next() {
+		var item MemoryListItem
+		var projectID sql.NullInt64
+		var projectName sql.NullString
+		if err := rows.Scan(
+			&item.ID, &item.MemoryType, &item.ScopeType, &projectID, &projectName,
+			&item.Title, &item.Content, &item.Confidence, &item.SupportCount, &item.ContradictionCount,
+			&item.Status, &item.FirstSeenAt, &item.LastSeenAt, &item.CreatedAt, &item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if projectID.Valid {
+			item.ProjectID = &projectID.Int64
+		}
+		if projectName.Valid {
+			item.ProjectName = &projectName.String
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (r *Repository) ListActiveMemoriesForRecall(ctx context.Context, projectIDs []int64, limit int) ([]StudyMemory, error) {
@@ -499,6 +563,26 @@ func normalizeLimit(limit int) int {
 		return maxListLimit
 	}
 	return limit
+}
+
+func normalizeMemoryItemsFilter(filter ListMemoryItemsFilter) (ListMemoryItemsFilter, bool, error) {
+	if filter.Status == "" {
+		filter.Status = "active"
+	}
+	allStatuses := filter.Status == "all"
+	if !allStatuses && !validMemoryStatus(filter.Status) {
+		return filter, false, ErrInvalidMemoryInput
+	}
+	if filter.MemoryType != "" && !validMemoryType(filter.MemoryType) {
+		return filter, false, ErrInvalidMemoryInput
+	}
+	if filter.Limit <= 0 {
+		filter.Limit = defaultListLimit
+	}
+	if filter.Limit > maxUIListLimit {
+		filter.Limit = maxUIListLimit
+	}
+	return filter, allStatuses, nil
 }
 
 func nullableJSON(value json.RawMessage) any {
