@@ -47,6 +47,7 @@ func TestMemoryUIListQueryDoesNotChangeRecallFilter(t *testing.T) {
 		"LEFT JOIN projects p ON p.id = m.project_id",
 		"p.name AS project_name",
 		"m.status = ?",
+		"ORDER BY evidence_date DESC, created_at DESC, id DESC",
 		"status = 'active'",
 		"AND confidence >= ?",
 	} {

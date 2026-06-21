@@ -125,9 +125,20 @@ func TestRepositoryCRUDWithMySQL(t *testing.T) {
 	if evidence.ID == 0 || evidence.MemoryID != memory.ID {
 		t.Fatalf("evidence = %+v, want evidence for memory", evidence)
 	}
+	laterExcerpt := "later evidence"
+	if _, err := repo.AddEvidence(ctx, AddEvidenceInput{
+		MemoryID: memory.ID, SourceType: "weekly_summary", SourceID: &sourceID,
+		EvidenceDate: "2026-06-20", Excerpt: &laterExcerpt, Weight: 1,
+	}); err != nil {
+		t.Fatalf("Add later evidence error: %v", err)
+	}
 	evidenceItems, err := repo.ListEvidence(ctx, memory.ID)
-	if err != nil || len(evidenceItems) != 1 {
-		t.Fatalf("ListEvidence = %+v err=%v, want one item", evidenceItems, err)
+	if err != nil || len(evidenceItems) != 2 || evidenceItems[0].EvidenceDate != "2026-06-20" {
+		t.Fatalf("ListEvidence = %+v err=%v, want latest evidence first", evidenceItems, err)
+	}
+	emptyEvidence, err := repo.ListMemoryEvidence(ctx, memory.ID+999999)
+	if err != nil || len(emptyEvidence) != 0 {
+		t.Fatalf("ListMemoryEvidence empty = %+v err=%v, want empty list", emptyEvidence, err)
 	}
 
 	if err := repo.ArchiveMemory(ctx, memory.ID); err != nil {

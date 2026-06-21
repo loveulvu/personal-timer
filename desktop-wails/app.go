@@ -49,6 +49,10 @@ func (a *App) ListMemories(status string, memoryType string, limit int) ([]api.M
 	return a.client.ListMemories(a.ctx, status, memoryType, limit)
 }
 
+func (a *App) ListMemoryEvidence(memoryID int64) ([]api.MemoryEvidenceItem, error) {
+	return a.client.ListMemoryEvidence(a.ctx, memoryID)
+}
+
 func (a *App) GetProjects() ([]api.Project, error) {
 	return a.client.GetProjects(a.ctx)
 }

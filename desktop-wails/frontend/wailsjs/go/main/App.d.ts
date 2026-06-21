@@ -42,6 +42,8 @@ export function ListDailyTasks(arg1:string):Promise<Array<api.DailyTask>>;
 
 export function ListMemories(arg1:string,arg2:string,arg3:number):Promise<Array<api.MemoryListItem>>;
 
+export function ListMemoryEvidence(arg1:number):Promise<Array<api.MemoryEvidenceItem>>;
+
 export function PauseTask(arg1:number):Promise<void>;
 
 export function ResumeTask(arg1:number):Promise<void>;

@@ -111,6 +111,17 @@ type MemoryListItem struct {
 	UpdatedAt          string  `json:"updated_at"`
 }
 
+type MemoryEvidenceItem struct {
+	ID           int64   `json:"id"`
+	MemoryID     int64   `json:"memory_id"`
+	SourceType   string  `json:"source_type"`
+	SourceID     *int64  `json:"source_id"`
+	EvidenceDate string  `json:"evidence_date"`
+	Excerpt      *string `json:"excerpt"`
+	Weight       float64 `json:"weight"`
+	CreatedAt    string  `json:"created_at"`
+}
+
 type CreateResponse struct {
 	ID int64 `json:"id"`
 }

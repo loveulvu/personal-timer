@@ -338,6 +338,32 @@ export namespace api {
 	        this.message = source["message"];
 	    }
 	}
+	export class MemoryEvidenceItem {
+	    id: number;
+	    memory_id: number;
+	    source_type: string;
+	    source_id?: number;
+	    evidence_date: string;
+	    excerpt?: string;
+	    weight: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MemoryEvidenceItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.memory_id = source["memory_id"];
+	        this.source_type = source["source_type"];
+	        this.source_id = source["source_id"];
+	        this.evidence_date = source["evidence_date"];
+	        this.excerpt = source["excerpt"];
+	        this.weight = source["weight"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class MemoryListItem {
 	    id: number;
 	    memory_type: string;

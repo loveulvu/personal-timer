@@ -388,7 +388,7 @@ func (r *Repository) ListEvidence(ctx context.Context, memoryID int64) ([]StudyM
 		SELECT id, memory_id, source_type, source_id, DATE_FORMAT(evidence_date, '%Y-%m-%d'), excerpt, weight, created_at
 		FROM study_memory_evidence
 		WHERE memory_id = ?
-		ORDER BY evidence_date DESC, id DESC
+		ORDER BY evidence_date DESC, created_at DESC, id DESC
 	`, memoryID)
 	if err != nil {
 		return nil, err
@@ -407,6 +407,13 @@ func (r *Repository) ListEvidence(ctx context.Context, memoryID int64) ([]StudyM
 		return nil, err
 	}
 	return items, nil
+}
+
+func (r *Repository) ListMemoryEvidence(ctx context.Context, memoryID int64) ([]StudyMemoryEvidence, error) {
+	if memoryID <= 0 {
+		return nil, ErrInvalidEvidenceInput
+	}
+	return r.ListEvidence(ctx, memoryID)
 }
 
 func (r *Repository) getEvidenceByID(ctx context.Context, id int64) (StudyMemoryEvidence, error) {

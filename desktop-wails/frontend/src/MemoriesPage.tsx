@@ -1,7 +1,7 @@
 import { ReloadOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Empty, Select, Space, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
-import { api, MemoryListItem, MemoryListStatusFilter } from './api'
+import { api, MemoryEvidenceItem, MemoryListItem, MemoryListStatusFilter } from './api'
 import { errorMessage } from './utils/labels'
 
 type Props = { connected: boolean }
@@ -12,6 +12,10 @@ export function MemoriesPage({ connected }: Props) {
   const [memories, setMemories] = useState<MemoryListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [feedbackLoading, setFeedbackLoading] = useState<Record<number, FeedbackValue | undefined>>({})
+  const [expandedMemoryId, setExpandedMemoryId] = useState<number | null>(null)
+  const [evidenceByMemory, setEvidenceByMemory] = useState<Record<number, MemoryEvidenceItem[]>>({})
+  const [evidenceLoading, setEvidenceLoading] = useState<Record<number, boolean>>({})
+  const [evidenceError, setEvidenceError] = useState<Record<number, string>>({})
   const [error, setError] = useState('')
   const [feedbackError, setFeedbackError] = useState('')
 
@@ -45,6 +49,25 @@ export function MemoriesPage({ connected }: Props) {
       message.error(text)
     } finally {
       setFeedbackLoading((current) => ({ ...current, [memory.id]: undefined }))
+    }
+  }
+
+  async function toggleEvidence(memory: MemoryListItem) {
+    if (expandedMemoryId === memory.id) {
+      setExpandedMemoryId(null)
+      return
+    }
+    setExpandedMemoryId(memory.id)
+    if (evidenceByMemory[memory.id]) return
+    setEvidenceLoading((current) => ({ ...current, [memory.id]: true }))
+    setEvidenceError((current) => ({ ...current, [memory.id]: '' }))
+    try {
+      const items = await api.listMemoryEvidence(memory.id)
+      setEvidenceByMemory((current) => ({ ...current, [memory.id]: items }))
+    } catch {
+      setEvidenceError((current) => ({ ...current, [memory.id]: '证据加载失败' }))
+    } finally {
+      setEvidenceLoading((current) => ({ ...current, [memory.id]: false }))
     }
   }
 
@@ -105,7 +128,15 @@ export function MemoriesPage({ connected }: Props) {
                 <Button size="small" loading={feedbackLoading[memory.id] === 'wrong'} onClick={() => submitMemoryFeedback(memory, 'wrong')} danger>错误</Button>
                 <Button size="small" loading={feedbackLoading[memory.id] === 'outdated'} onClick={() => submitMemoryFeedback(memory, 'outdated')}>已过期</Button>
                 <Button size="small" loading={feedbackLoading[memory.id] === 'too_broad'} onClick={() => submitMemoryFeedback(memory, 'too_broad')}>太宽泛</Button>
+                <Button size="small" onClick={() => toggleEvidence(memory)}>{expandedMemoryId === memory.id ? '收起证据' : '查看证据'}</Button>
               </Space>
+              {expandedMemoryId === memory.id && (
+                <EvidenceList
+                  items={evidenceByMemory[memory.id] ?? []}
+                  loading={evidenceLoading[memory.id]}
+                  error={evidenceError[memory.id]}
+                />
+              )}
             </Space>
           </Card>
         ))}
@@ -130,4 +161,27 @@ function formatPercent(value: number) {
 function formatDate(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN')
+}
+
+function EvidenceList({ items, loading, error }: { items: MemoryEvidenceItem[]; loading?: boolean; error?: string }) {
+  if (loading) return <Typography.Text type="secondary">加载证据中...</Typography.Text>
+  if (error) return <Alert type="error" showIcon title={error} />
+  return (
+    <Card size="small" title="支撑证据">
+      {items.length === 0 && <Empty description="暂无证据记录" />}
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        {items.map((item) => (
+          <div key={item.id}>
+            <Space wrap>
+              <Typography.Text>日期：{item.evidence_date}</Typography.Text>
+              <Typography.Text>来源：{item.source_type}{item.source_id ? ` #${item.source_id}` : ''}</Typography.Text>
+              <Typography.Text>权重：{item.weight}</Typography.Text>
+              <Typography.Text type="secondary">创建：{formatDate(item.created_at)}</Typography.Text>
+            </Space>
+            <Typography.Paragraph style={{ margin: '6px 0 0' }}>摘录：{item.excerpt || '无'}</Typography.Paragraph>
+          </div>
+        ))}
+      </Space>
+    </Card>
+  )
 }

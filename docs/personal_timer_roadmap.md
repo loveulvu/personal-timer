@@ -824,3 +824,26 @@ otherwise => low
 - 不做复杂搜索。
 - 不引入 Agent / LangChain / RAG / 向量库。
 - UI 查询接口和 Summary Memory Recall 查询保持分离，Recall 仍使用 active + confidence 过滤。
+
+## V11 Memory Evidence UI V1
+
+Goal:
+- Show the evidence behind each memory so memory is not a black box.
+
+Backend:
+- `GET /api/memories/:id/evidence`
+- Data source: `study_memory_evidence`.
+- Sort: `evidence_date DESC, created_at DESC, id DESC`.
+
+Frontend:
+- Memory page adds a per-card evidence toggle.
+- Evidence is loaded on demand and cached per memory id.
+- Shows date, source, source id, weight, created_at, and excerpt.
+
+Current limits:
+- No evidence edit.
+- No evidence delete.
+- No summary detail jump.
+- No complex timeline.
+- No LLM evidence summary.
+- No change to Memory Recall.

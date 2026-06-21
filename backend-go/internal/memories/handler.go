@@ -34,6 +34,20 @@ func (h *Handler) ListMemories(c *gin.Context) {
 	c.JSON(200, gin.H{"status": "ok", "data": items})
 }
 
+func (h *Handler) ListMemoryEvidence(c *gin.Context) {
+	memoryID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || memoryID <= 0 {
+		c.JSON(400, gin.H{"status": "error", "message": "invalid memory id"})
+		return
+	}
+	items, err := h.repo.ListMemoryEvidence(c.Request.Context(), memoryID)
+	if err != nil {
+		c.JSON(500, gin.H{"status": "error", "message": "list memory evidence failed"})
+		return
+	}
+	c.JSON(200, gin.H{"status": "ok", "data": items})
+}
+
 func (h *Handler) ExtractSummary(c *gin.Context) {
 	summaryID, err := strconv.ParseInt(c.Param("summary_id"), 10, 64)
 	if err != nil || summaryID <= 0 {

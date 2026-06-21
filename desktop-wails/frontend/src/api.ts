@@ -117,6 +117,17 @@ export type MemoryListItem = {
   updated_at: string
 }
 
+export type MemoryEvidenceItem = {
+  id: number
+  memory_id: number
+  source_type: string
+  source_id?: number | null
+  evidence_date: string
+  excerpt?: string | null
+  weight: number
+  created_at: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -277,7 +288,13 @@ export const api = {
       ...(request.target_index == null ? {} : { target_index: request.target_index }),
     }) as Promise<FeedbackResponse>,
   listMemories: (status?: MemoryListStatusFilter, memoryType?: string, limit?: number) =>
-    AppBindings.ListMemories(status ?? '', memoryType ?? '', limit ?? 0) as Promise<MemoryListItem[]>,
+    memoryBindings.ListMemories(status ?? '', memoryType ?? '', limit ?? 0),
+  listMemoryEvidence: (memoryId: number) => memoryBindings.ListMemoryEvidence(memoryId),
   testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
 }
 import * as AppBindings from '../wailsjs/go/main/App'
+
+const memoryBindings = AppBindings as unknown as {
+  ListMemories: (status: string, memoryType: string, limit: number) => Promise<MemoryListItem[]>
+  ListMemoryEvidence: (memoryId: number) => Promise<MemoryEvidenceItem[]>
+}

@@ -104,6 +104,7 @@ func main() {
 	api.DELETE("/summaries/:id", summaryHandler.DeleteSummary)
 	memoryHandler := memories.NewHandler(memoryExtractor, memoryRepo)
 	api.GET("/memories", memoryHandler.ListMemories)
+	api.GET("/memories/:id/evidence", memoryHandler.ListMemoryEvidence)
 	api.POST("/memories/extract/summary/:summary_id", memoryHandler.ExtractSummary)
 	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)

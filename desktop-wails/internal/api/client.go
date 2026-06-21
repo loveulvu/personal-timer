@@ -143,6 +143,14 @@ func (c *Client) ListMemories(ctx context.Context, status, memoryType string, li
 	return result.Data, nil
 }
 
+func (c *Client) ListMemoryEvidence(ctx context.Context, memoryID int64) ([]MemoryEvidenceItem, error) {
+	var result dataResponse[[]MemoryEvidenceItem]
+	if err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/api/memories/%d/evidence", memoryID), nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Data, nil
+}
+
 func (c *Client) GetProjects(ctx context.Context) ([]Project, error) {
 	var result dataResponse[[]Project]
 	if err := c.doJSON(ctx, http.MethodGet, "/api/projects", nil, &result); err != nil {

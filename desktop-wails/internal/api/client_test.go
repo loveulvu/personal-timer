@@ -139,6 +139,25 @@ func TestListMemoriesUsesQueryAndReturnsData(t *testing.T) {
 	}
 }
 
+func TestListMemoryEvidenceUsesPathAndReturnsData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/memories/9/evidence" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":1,"memory_id":9,"source_type":"daily_summary","source_id":12,"evidence_date":"2026-06-20","excerpt":"Go context repeated","weight":1,"created_at":"2026-06-20T12:00:00Z"}]}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).ListMemoryEvidence(context.Background(), 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].SourceID == nil || *result[0].SourceID != 12 {
+		t.Fatalf("unexpected evidence: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
