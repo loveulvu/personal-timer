@@ -113,6 +113,14 @@ func (c *Client) GetPlanRisk(ctx context.Context, date string) (*PlanRiskRespons
 	return &result.Data, nil
 }
 
+func (c *Client) SubmitFeedback(ctx context.Context, req FeedbackRequest) (*FeedbackResponse, error) {
+	var result dataResponse[FeedbackResponse]
+	if err := c.doJSON(ctx, http.MethodPost, "/api/feedback", req, &result); err != nil {
+		return nil, err
+	}
+	return &result.Data, nil
+}
+
 func (c *Client) GetProjects(ctx context.Context) ([]Project, error) {
 	var result dataResponse[[]Project]
 	if err := c.doJSON(ctx, http.MethodGet, "/api/projects", nil, &result); err != nil {

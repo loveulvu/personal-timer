@@ -90,6 +90,10 @@ export function StartTask(arg1) {
   return window['go']['main']['App']['StartTask'](arg1);
 }
 
+export function SubmitFeedback(arg1) {
+  return window['go']['main']['App']['SubmitFeedback'](arg1);
+}
+
 export function TestLLM() {
   return window['go']['main']['App']['TestLLM']();
 }

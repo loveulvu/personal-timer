@@ -706,4 +706,31 @@ Daily / Weekly Summary 生成前会从 MySQL `study_memories` 读取 active memo
 - 使用方式：LLM prompt 可以看到 `source_data.relevant_memories`，但 memory 只作为参考，不作为绝对事实。
 - 失败策略：recall 失败只写入 warning 并记录日志，不影响 Summary 生成。
 
-当前仍然没有 LLM memory extraction、Agent、RAG、向量库、UI 或 feedback；memory extraction 仍由确定性规则写入。
+### study_feedback
+
+业务含义：保存用户对 Summary、Action Item 和 Memory 的轻量反馈，用于后续判断总结、建议和长期记忆是否准确或有用。
+
+核心字段：
+
+- `target_type`：`summary` / `action_item` / `memory`
+- `target_id`：summary/action_item 时对应 `generated_summaries.id`，memory 时对应 `study_memories.id`。
+- `target_index`：action_item 的数组下标；summary / memory 为空。
+- `feedback_value`：按 target_type 限定取值。
+- `feedback_note`：可选备注。
+
+反馈值：
+
+- summary：`accurate` / `partially_accurate` / `inaccurate`
+- action_item：`useful` / `not_useful` / `already_known` / `too_vague`
+- memory：`correct` / `outdated` / `wrong` / `too_broad`
+
+Memory feedback 第一版影响：
+
+- `correct`：`support_count + 1`，`confidence + 0.05`，最高 1.0。
+- `wrong`：`contradiction_count + 1`，`confidence - 0.15`，最低 0；低于 0.3 时归档。
+- `outdated`：`contradiction_count + 1`，`confidence - 0.10`；低于 0.3 时归档。
+- `too_broad`：`confidence - 0.05`。
+
+summary / action_item feedback 第一版只记录，不自动影响 Summary、prompt 或 LLM 输出。
+
+当前仍然没有 LLM memory extraction、Agent、RAG、向量库或复杂 memory 管理 UI；memory extraction 仍由确定性规则写入。

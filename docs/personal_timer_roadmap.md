@@ -506,7 +506,7 @@ otherwise => low risk
 
 目标：
 
-- 用户可以反馈 action_items / memory 是否有用。
+- 用户可以反馈 Summary 是否准确、action_items 是否有用、memory 是否正确。
 
 业务价值：
 
@@ -515,21 +515,27 @@ otherwise => low risk
 
 需要改：
 
-- 表：可能新增 `summary_action_feedback` 或 memory feedback 字段。
-- API：提交反馈。
-- UI：简单有用/无用/已处理。
+- 表：新增 `study_feedback`。
+- API：`POST /api/feedback`。
+- UI：Summary 页面提供总结准确度反馈，action item 提供有用/没用反馈。
+- Memory：第一版只提供后端和 Wails API，不做完整管理 UI。
 
 不做：
 
+- 不调用 LLM。
+- 不让 LLM 自动改写 memory。
+- summary/action_item feedback 第一版只记录，不自动影响 LLM。
+- memory feedback 只调整 confidence / support_count / contradiction_count / archived。
 - 不做复杂评分系统。
 - 不训练模型。
 - 不做社交化统计。
 
 验收标准：
 
+- 用户能标记 Summary 准确 / 部分准确 / 不准确。
 - 用户能标记 action_item 是否有用。
 - 后端保存反馈。
-- 后续生成规则能避免重复低价值建议。
+- memory feedback 能轻量调整 confidence 和计数。
 
 ### V10：需要时再考虑向量库 / Agent workflow
 

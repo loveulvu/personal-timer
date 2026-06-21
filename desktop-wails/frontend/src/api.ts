@@ -75,6 +75,26 @@ export type PlanRiskResponse = {
   suggestions: string[]
 }
 
+export type FeedbackTargetType = 'summary' | 'action_item' | 'memory'
+
+export type FeedbackRequest = {
+  target_type: FeedbackTargetType
+  target_id: number
+  target_index?: number | null
+  feedback_value: string
+  feedback_note?: string
+}
+
+export type FeedbackResponse = {
+  id: number
+  target_type: FeedbackTargetType
+  target_id: number
+  target_index?: number | null
+  feedback_value: string
+  feedback_note: string
+  created_at: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -226,6 +246,14 @@ export const api = {
   deleteSummary: (id: number) => AppBindings.DeleteSummary(id),
   acceptSummaryActionItem: (summaryId: number, itemIndex: number, targetDate: string) =>
     AppBindings.AcceptSummaryActionItem(summaryId, itemIndex, targetDate) as Promise<AcceptActionItemResult>,
+  submitFeedback: (request: FeedbackRequest) =>
+    AppBindings.SubmitFeedback({
+      target_type: request.target_type,
+      target_id: request.target_id,
+      feedback_value: request.feedback_value,
+      feedback_note: request.feedback_note ?? '',
+      ...(request.target_index == null ? {} : { target_index: request.target_index }),
+    }) as Promise<FeedbackResponse>,
   testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
 }
 import * as AppBindings from '../wailsjs/go/main/App'

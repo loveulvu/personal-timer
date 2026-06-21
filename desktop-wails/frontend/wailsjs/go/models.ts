@@ -250,6 +250,50 @@ export namespace api {
 	        this.reason = source["reason"];
 	    }
 	}
+	export class FeedbackRequest {
+	    target_type: string;
+	    target_id: number;
+	    target_index?: number;
+	    feedback_value: string;
+	    feedback_note: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FeedbackRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.target_type = source["target_type"];
+	        this.target_id = source["target_id"];
+	        this.target_index = source["target_index"];
+	        this.feedback_value = source["feedback_value"];
+	        this.feedback_note = source["feedback_note"];
+	    }
+	}
+	export class FeedbackResponse {
+	    id: number;
+	    target_type: string;
+	    target_id: number;
+	    target_index?: number;
+	    feedback_value: string;
+	    feedback_note: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FeedbackResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.target_type = source["target_type"];
+	        this.target_id = source["target_id"];
+	        this.target_index = source["target_index"];
+	        this.feedback_value = source["feedback_value"];
+	        this.feedback_note = source["feedback_note"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class FinishTaskRequest {
 	    finish_note: string;
 	    finish_description: string;

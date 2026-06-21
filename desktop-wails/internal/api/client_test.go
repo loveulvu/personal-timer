@@ -85,6 +85,38 @@ func TestGetPlanRiskUsesDateQueryAndReturnsData(t *testing.T) {
 	}
 }
 
+func TestSubmitFeedbackUsesRouteAndJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/feedback" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var request FeedbackRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.TargetType != "action_item" || request.TargetID != 7 || request.TargetIndex == nil || *request.TargetIndex != 2 || request.FeedbackValue != "useful" {
+			t.Fatalf("unexpected request: %#v", request)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"id":3,"target_type":"action_item","target_id":7,"target_index":2,"feedback_value":"useful","feedback_note":"","created_at":"2026-06-20T12:00:00Z"}}`))
+	}))
+	defer server.Close()
+
+	index := 2
+	result, err := NewClient(server.URL).SubmitFeedback(context.Background(), FeedbackRequest{
+		TargetType:    "action_item",
+		TargetID:      7,
+		TargetIndex:   &index,
+		FeedbackValue: "useful",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ID != 3 || result.TargetIndex == nil || *result.TargetIndex != 2 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

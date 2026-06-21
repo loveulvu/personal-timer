@@ -46,6 +46,8 @@ export function ResumeTask(arg1:number):Promise<void>;
 
 export function StartTask(arg1:number):Promise<void>;
 
+export function SubmitFeedback(arg1:api.FeedbackRequest):Promise<api.FeedbackResponse>;
+
 export function TestLLM():Promise<api.LLMTestResponse>;
 
 export function UpdateCompletedTask(arg1:number,arg2:api.UpdateCompletedTaskRequest):Promise<void>;

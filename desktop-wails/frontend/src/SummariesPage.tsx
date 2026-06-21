@@ -9,6 +9,7 @@ import { errorMessage, valueLabel } from './utils/labels'
 type Props = { connected: boolean }
 type SummaryFilter = '' | 'daily' | 'weekly'
 type AcceptStatus = { loading?: boolean; text?: string; error?: string }
+type FeedbackStatus = { loading?: boolean; text?: string; error?: string }
 
 export function SummariesPage({ connected }: Props) {
   const today = dayjs()
@@ -19,6 +20,7 @@ export function SummariesPage({ connected }: Props) {
   const [detail, setDetail] = useState<Summary | null>(null)
   const [generated, setGenerated] = useState<GenerateSummaryResult | null>(null)
   const [accepted, setAccepted] = useState<Record<string, AcceptStatus>>({})
+  const [feedbackStatus, setFeedbackStatus] = useState<Record<string, FeedbackStatus>>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -68,6 +70,19 @@ export function SummariesPage({ connected }: Props) {
     }
   }
 
+  async function submitFeedback(key: string, request: Parameters<typeof api.submitFeedback>[0], successText: string) {
+    setFeedbackStatus((current) => ({ ...current, [key]: { loading: true } }))
+    try {
+      await api.submitFeedback(request)
+      setFeedbackStatus((current) => ({ ...current, [key]: { text: successText } }))
+      message.success('反馈已保存')
+    } catch (err) {
+      const text = errorMessage(err)
+      setFeedbackStatus((current) => ({ ...current, [key]: { error: text } }))
+      message.error(text)
+    }
+  }
+
   useEffect(() => { if (connected) loadSummaries(filter) }, [connected, filter])
 
   const columns = [
@@ -88,7 +103,7 @@ export function SummariesPage({ connected }: Props) {
       <Card title="生成每周总结"><Space orientation="vertical"><DatePicker.RangePicker value={weeklyRange} onChange={(value) => value?.[0] && value?.[1] && setWeeklyRange([value[0], value[1]])} /><Button type="primary" onClick={() => generate(() => api.generateWeeklySummary(weeklyRange[0].format('YYYY-MM-DD'), weeklyRange[1].format('YYYY-MM-DD')))} loading={loading} disabled={!connected}>生成每周总结</Button></Space></Card>
     </div>
 
-    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph><ActionItems summaryId={generated.summary_id} items={generated.action_items} accepted={accepted} onAccept={acceptActionItem} /></Card>}
+    {generated && <Card title={`已生成总结 #${generated.summary_id}`}><SummaryFeedback summaryId={generated.summary_id} feedbackStatus={feedbackStatus} onSubmit={submitFeedback} /><Typography.Paragraph className="content-block">{generated.content}</Typography.Paragraph><ActionItems summaryId={generated.summary_id} items={generated.action_items} accepted={accepted} feedbackStatus={feedbackStatus} onAccept={acceptActionItem} onFeedback={submitFeedback} /></Card>}
 
     <Card title="总结列表" extra={<Select value={filter} onChange={setFilter} style={{ width: 120 }} options={[{ value: '', label: '全部' }, { value: 'daily', label: '每日' }, { value: 'weekly', label: '每周' }]} />}>
       <Table rowKey="id" loading={loading} dataSource={summaries} columns={columns} pagination={{ pageSize: 8 }} />
@@ -102,16 +117,30 @@ export function SummariesPage({ connected }: Props) {
           { key: 'start', label: '开始日期', children: detail.start_date },
           { key: 'end', label: '结束日期', children: detail.end_date },
         ]} />
+        <SummaryFeedback summaryId={detail.id} feedbackStatus={feedbackStatus} onSubmit={submitFeedback} />
         <Typography.Title level={5}>内容</Typography.Title>
         <pre className="content-block">{detail.content}</pre>
-        <ActionItems summaryId={detail.id} items={detail.action_items} accepted={accepted} onAccept={acceptActionItem} />
+        <ActionItems summaryId={detail.id} items={detail.action_items} accepted={accepted} feedbackStatus={feedbackStatus} onAccept={acceptActionItem} onFeedback={submitFeedback} />
         {detail.source_data !== undefined && <><Typography.Title level={5}>源数据</Typography.Title><pre className="content-block">{formatSourceData(detail.source_data)}</pre></>}
       </>}
     </Modal>
   </div>
 }
 
-function ActionItems({ summaryId, items, accepted, onAccept }: { summaryId: number; items?: SummaryActionItem[] | null; accepted: Record<string, AcceptStatus>; onAccept: (summaryId: number, itemIndex: number) => void }) {
+function SummaryFeedback({ summaryId, feedbackStatus, onSubmit }: { summaryId: number; feedbackStatus: Record<string, FeedbackStatus>; onSubmit: (key: string, request: Parameters<typeof api.submitFeedback>[0], successText: string) => void }) {
+  const key = `summary:${summaryId}`
+  const status = feedbackStatus[key]
+  return <Space wrap style={{ marginBottom: 12 }}>
+    <Typography.Text type="secondary">总结反馈：</Typography.Text>
+    <Button size="small" loading={status?.loading} onClick={() => onSubmit(key, { target_type: 'summary', target_id: summaryId, feedback_value: 'accurate' }, '已反馈：准确')}>准确</Button>
+    <Button size="small" loading={status?.loading} onClick={() => onSubmit(key, { target_type: 'summary', target_id: summaryId, feedback_value: 'partially_accurate' }, '已反馈：部分准确')}>部分准确</Button>
+    <Button size="small" danger loading={status?.loading} onClick={() => onSubmit(key, { target_type: 'summary', target_id: summaryId, feedback_value: 'inaccurate' }, '已反馈：不准确')}>不准确</Button>
+    {status?.text && <Tag color="green">{status.text}</Tag>}
+    {status?.error && <Typography.Text type="danger">{status.error}</Typography.Text>}
+  </Space>
+}
+
+function ActionItems({ summaryId, items, accepted, feedbackStatus, onAccept, onFeedback }: { summaryId: number; items?: SummaryActionItem[] | null; accepted: Record<string, AcceptStatus>; feedbackStatus: Record<string, FeedbackStatus>; onAccept: (summaryId: number, itemIndex: number) => void; onFeedback: (key: string, request: Parameters<typeof api.submitFeedback>[0], successText: string) => void }) {
   const actionItems = normalizeActionItems(items)
   if (actionItems.length === 0) return null
   return <div>
@@ -119,6 +148,8 @@ function ActionItems({ summaryId, items, accepted, onAccept }: { summaryId: numb
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {actionItems.map((item, index) => {
         const status = accepted[acceptKey(summaryId, index)]
+        const feedbackKey = `action_item:${summaryId}:${index}`
+        const feedback = feedbackStatus[feedbackKey]
         return <div key={`${item.type}-${item.title}-${index}`}>
         <Space wrap>
           <Tag>{priorityLabel(item.priority)}</Tag>
@@ -128,12 +159,16 @@ function ActionItems({ summaryId, items, accepted, onAccept }: { summaryId: numb
             {status?.loading ? '采纳中...' : '采纳到明日计划'}
           </Button>}
           {status?.text && <Tag color="green">{status.text}</Tag>}
+          <Button size="small" loading={feedback?.loading} onClick={() => onFeedback(feedbackKey, { target_type: 'action_item', target_id: summaryId, target_index: index, feedback_value: 'useful' }, '已反馈：有用')}>有用</Button>
+          <Button size="small" loading={feedback?.loading} onClick={() => onFeedback(feedbackKey, { target_type: 'action_item', target_id: summaryId, target_index: index, feedback_value: 'not_useful' }, '已反馈：没用')}>没用</Button>
+          {feedback?.text && <Tag color="green">{feedback.text}</Tag>}
         </Space>
         {item.reason && <Typography.Paragraph style={{ margin: '6px 0 0' }}>原因：{item.reason}</Typography.Paragraph>}
         {(item.suggested_project || item.suggested_minutes) && <Typography.Text type="secondary">
           建议：{[item.suggested_project, item.suggested_minutes ? `${item.suggested_minutes} 分钟` : ''].filter(Boolean).join('，')}
         </Typography.Text>}
         {status?.error && <Typography.Paragraph type="danger" style={{ margin: '6px 0 0' }}>{status.error}</Typography.Paragraph>}
+        {feedback?.error && <Typography.Paragraph type="danger" style={{ margin: '6px 0 0' }}>{feedback.error}</Typography.Paragraph>}
       </div>
       })}
     </Space>

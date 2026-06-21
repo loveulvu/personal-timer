@@ -41,6 +41,10 @@ func (a *App) GetPlanRisk(date string) (*api.PlanRiskResponse, error) {
 	return a.client.GetPlanRisk(a.ctx, date)
 }
 
+func (a *App) SubmitFeedback(req api.FeedbackRequest) (*api.FeedbackResponse, error) {
+	return a.client.SubmitFeedback(a.ctx, req)
+}
+
 func (a *App) GetProjects() ([]api.Project, error) {
 	return a.client.GetProjects(a.ctx)
 }

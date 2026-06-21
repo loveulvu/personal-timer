@@ -4,6 +4,7 @@ import (
 	"log"
 	"personal/internal/dailytasks"
 	"personal/internal/db"
+	"personal/internal/feedback"
 	"personal/internal/handler"
 	"personal/internal/llm"
 	"personal/internal/memories"
@@ -34,6 +35,10 @@ func main() {
 	api.GET("/config/status", handler.ConfigStatus(mysqlDB))
 	api.POST("/llm/test", handler.TestLLM)
 	api.POST("/llm/test-summary", handler.TestLLMSummary)
+	feedbackRepo := feedback.NewRepository(mysqlDB)
+	feedbackService := feedback.NewService(feedbackRepo)
+	feedbackHandler := feedback.NewHandler(feedbackService)
+	api.POST("/feedback", feedbackHandler.SubmitFeedback)
 	projectRepo := projects.NewRepository(mysqlDB)
 	projectService := projects.NewService(projectRepo)
 	projectHandler := projects.NewHandler(projectService)

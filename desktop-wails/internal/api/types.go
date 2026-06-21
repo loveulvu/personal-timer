@@ -75,6 +75,24 @@ type PlanRiskResponse struct {
 	Suggestions            []string `json:"suggestions"`
 }
 
+type FeedbackRequest struct {
+	TargetType    string `json:"target_type"`
+	TargetID      int64  `json:"target_id"`
+	TargetIndex   *int   `json:"target_index"`
+	FeedbackValue string `json:"feedback_value"`
+	FeedbackNote  string `json:"feedback_note"`
+}
+
+type FeedbackResponse struct {
+	ID            int64  `json:"id"`
+	TargetType    string `json:"target_type"`
+	TargetID      int64  `json:"target_id"`
+	TargetIndex   *int   `json:"target_index"`
+	FeedbackValue string `json:"feedback_value"`
+	FeedbackNote  string `json:"feedback_note"`
+	CreatedAt     string `json:"created_at"`
+}
+
 type CreateResponse struct {
 	ID int64 `json:"id"`
 }
