@@ -2,6 +2,7 @@ package agent
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,12 +10,13 @@ import (
 type Handler struct {
 	registry       *ToolRegistry
 	contextBuilder *ContextPackBuilder
+	runner         *Runner
 }
 
-func NewHandler(registry *ToolRegistry, builders ...*ContextPackBuilder) *Handler {
-	h := &Handler{registry: registry}
-	if len(builders) > 0 {
-		h.contextBuilder = builders[0]
+func NewHandler(registry *ToolRegistry, builder *ContextPackBuilder, runners ...*Runner) *Handler {
+	h := &Handler{registry: registry, contextBuilder: builder}
+	if len(runners) > 0 {
+		h.runner = runners[0]
 	}
 	return h
 }
@@ -65,4 +67,48 @@ func (h *Handler) ContextPreview(c *gin.Context) {
 		return
 	}
 	c.JSON(200, ContextPreviewResponse{ContextPack: pack})
+}
+
+func (h *Handler) CreateRun(c *gin.Context) {
+	var req AgentRunRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"status": "error", "message": "invalid agent run json"})
+		return
+	}
+	if h.runner == nil {
+		c.JSON(500, gin.H{"status": "error", "message": "agent runner unavailable"})
+		return
+	}
+	result, err := h.runner.Start(c.Request.Context(), req)
+	if err != nil {
+		if errors.Is(err, ErrInvalidContextPreviewInput) {
+			c.JSON(400, gin.H{"status": "error", "message": "invalid agent run input"})
+			return
+		}
+		c.JSON(500, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+	c.JSON(200, result)
+}
+
+func (h *Handler) GetRun(c *gin.Context) {
+	if h.runner == nil {
+		c.JSON(500, gin.H{"status": "error", "message": "agent runner unavailable"})
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{"status": "error", "message": "invalid agent run id"})
+		return
+	}
+	result, err := h.runner.Get(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrAgentRunNotFound) {
+			c.JSON(404, gin.H{"status": "error", "message": "agent run not found"})
+			return
+		}
+		c.JSON(500, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+	c.JSON(200, result)
 }

@@ -8,11 +8,12 @@ import (
 type AgentRunStatus string
 
 const (
-	AgentRunStatusPending   AgentRunStatus = "pending"
-	AgentRunStatusRunning   AgentRunStatus = "running"
-	AgentRunStatusCompleted AgentRunStatus = "completed"
-	AgentRunStatusFailed    AgentRunStatus = "failed"
-	AgentRunStatusCancelled AgentRunStatus = "cancelled"
+	AgentRunStatusPending              AgentRunStatus = "pending"
+	AgentRunStatusRunning              AgentRunStatus = "running"
+	AgentRunStatusCompleted            AgentRunStatus = "completed"
+	AgentRunStatusFailed               AgentRunStatus = "failed"
+	AgentRunStatusCancelled            AgentRunStatus = "cancelled"
+	AgentRunStatusRequiresConfirmation AgentRunStatus = "requires_confirmation"
 )
 
 type AgentStepStatus string
@@ -29,9 +30,12 @@ type AgentStepType string
 
 const (
 	AgentStepTypeModelCall      AgentStepType = "model_call"
+	AgentStepTypeBuildContext   AgentStepType = "build_context"
+	AgentStepTypeModelDecision  AgentStepType = "model_decision"
 	AgentStepTypeToolCall       AgentStepType = "tool_call"
 	AgentStepTypeActionProposal AgentStepType = "action_proposal"
 	AgentStepTypeFinalAnswer    AgentStepType = "final_answer"
+	AgentStepTypeError          AgentStepType = "error"
 )
 
 type ActionProposalStatus string
@@ -45,14 +49,15 @@ const (
 )
 
 type AgentRun struct {
-	ID           int64          `json:"id"`
-	UserGoal     string         `json:"user_goal"`
-	TargetDate   string         `json:"target_date"`
-	Status       AgentRunStatus `json:"status"`
-	FinalAnswer  string         `json:"final_answer,omitempty"`
-	ErrorMessage string         `json:"error_message,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
+	ID             int64           `json:"id"`
+	UserGoal       string          `json:"user_goal"`
+	TargetDate     string          `json:"target_date"`
+	Status         AgentRunStatus  `json:"status"`
+	FinalAnswer    string          `json:"final_answer,omitempty"`
+	PendingActions json.RawMessage `json:"pending_actions,omitempty"`
+	ErrorMessage   string          `json:"error_message,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	CompletedAt    *time.Time      `json:"completed_at,omitempty"`
 }
 
 type AgentStep struct {
