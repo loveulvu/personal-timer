@@ -141,6 +141,21 @@ input {
   margin-bottom: 16px;
 }
 
+.agent-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+  gap: 16px;
+}
+
+.json-block {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .page-stack,
 .dashboard-page {
   display: grid;
@@ -453,6 +468,7 @@ input {
   }
 
   .dashboard-grid,
+  .agent-grid,
   .projects-grid,
   .summary-tools,
   .weekly-content {

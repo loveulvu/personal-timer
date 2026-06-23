@@ -259,6 +259,161 @@ export type LLMTestResponse = {
   message: string
 }
 
+export type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue }
+
+export type AgentContextPreviewRequest = {
+  goal: string
+  target_date: string
+  recent_days: number
+}
+
+export type AgentContextPreviewResponse = {
+  context_pack: AgentContextPack
+}
+
+export type AgentContextPack = {
+  user_goal: string
+  target_date: string
+  today_tasks: AgentContextTask[]
+  recent_summaries: AgentContextSummary[]
+  memories: AgentContextMemory[]
+  plan_risk?: JsonValue
+  recent_action_items: AgentContextActionItem[]
+  constraints: string[]
+  omitted_sections: string[]
+}
+
+export type AgentContextTask = {
+  id: number
+  project_id?: number | null
+  project_name?: string
+  task_date: string
+  title: string
+  estimated_minutes: number
+  actual_minutes: number
+  status: string
+}
+
+export type AgentContextSummary = {
+  id: number
+  summary_type: string
+  start_date: string
+  end_date: string
+  content_excerpt: string
+  action_items_excerpt?: string
+  created_at: string
+}
+
+export type AgentContextMemory = {
+  id: number
+  memory_type: string
+  scope_type: string
+  title: string
+  content: string
+  confidence: number
+  support_count: number
+  contradiction_count: number
+  evidence_count: number
+  evidence_excerpt?: string
+  status: string
+}
+
+export type AgentContextActionItem = {
+  summary_id: number
+  item_index: number
+  content: string
+  accepted: boolean
+  target_date?: string
+  target_task_id?: number | null
+}
+
+export type AgentRunRequest = AgentContextPreviewRequest
+
+export type AgentRun = {
+  id: number
+  user_goal: string
+  target_date: string
+  status: string
+  final_answer?: string
+  pending_actions?: JsonValue
+  error_message?: string
+  created_at: string
+  completed_at?: string | null
+}
+
+export type AgentRunListItem = {
+  id: number
+  user_goal: string
+  target_date: string
+  status: string
+  final_answer_excerpt?: string
+  proposal_count: number
+  pending_proposal_count: number
+  step_count: number
+  created_at: string
+  completed_at?: string | null
+}
+
+export type AgentStep = {
+  id: number
+  run_id: number
+  step_index: number
+  step_type: string
+  tool_name?: string
+  tool_input?: JsonValue
+  tool_output?: JsonValue
+  thought_summary?: string
+  status: string
+  error_message?: string
+  created_at: string
+}
+
+export type AgentActionProposal = {
+  id: number
+  run_id: number
+  step_id: number
+  tool_name: string
+  action_type: string
+  payload?: JsonValue
+  risk_level: string
+  status: string
+  result?: JsonValue
+  error_message?: string
+  target_entity_type?: string
+  target_entity_id?: number | null
+  created_at: string
+  decided_at?: string | null
+  executed_at?: string | null
+}
+
+export type AgentContextSnapshot = {
+  id: number
+  run_id: number
+  context_pack: AgentContextPack
+  token_estimate: number
+  omitted_sections: string[]
+  created_at: string
+}
+
+export type AgentRunResponse = {
+  run: AgentRun
+  steps: AgentStep[]
+  proposals?: AgentActionProposal[]
+}
+
+export type AgentTrajectory = {
+  run: AgentRun
+  context_snapshot?: AgentContextSnapshot | null
+  steps: AgentStep[]
+  proposals: AgentActionProposal[]
+}
+
 export const api = {
   getStartupStatus: () => AppBindings.GetStartupStatus() as Promise<StartupStatus>,
   listDailyTasks: (date: string) => AppBindings.ListDailyTasks(date) as Promise<DailyTask[]>,
@@ -308,6 +463,25 @@ export const api = {
     memoryBindings.ListMemories(status ?? '', memoryType ?? '', limit ?? 0),
   listMemoryEvidence: (memoryId: number) => memoryBindings.ListMemoryEvidence(memoryId),
   testLLM: () => AppBindings.TestLLM() as Promise<LLMTestResponse>,
+  previewAgentContext: (request: AgentContextPreviewRequest) =>
+    parseBinding<AgentContextPreviewResponse>(
+      AppBindings.PreviewAgentContext(request.goal, request.target_date, request.recent_days),
+    ),
+  createAgentRun: (request: AgentRunRequest) =>
+    parseBinding<AgentRunResponse>(
+      AppBindings.CreateAgentRun(request.goal, request.target_date, request.recent_days),
+    ),
+  listAgentRuns: (status?: string, limit?: number) =>
+    parseBinding<AgentRunListItem[]>(AppBindings.ListAgentRuns(status ?? '', limit ?? 20)),
+  getAgentRun: (id: number) => parseBinding<AgentRunResponse>(AppBindings.GetAgentRun(id)),
+  getAgentTrajectory: (id: number) =>
+    parseBinding<AgentTrajectory>(AppBindings.GetAgentTrajectory(id)),
+  listAgentActionProposals: (status?: string) =>
+    parseBinding<AgentActionProposal[]>(AppBindings.ListAgentActionProposals(status ?? '')),
+  acceptAgentActionProposal: (id: number) =>
+    parseBinding<AgentActionProposal>(AppBindings.AcceptAgentActionProposal(id)),
+  rejectAgentActionProposal: (id: number) =>
+    parseBinding<AgentActionProposal>(AppBindings.RejectAgentActionProposal(id)),
 }
 import * as AppBindings from '../wailsjs/go/main/App'
 
@@ -318,4 +492,8 @@ const memoryBindings = AppBindings as unknown as {
 
 const actionItemBindings = AppBindings as unknown as {
   ListActionItemAcceptances: (summaryId: number) => Promise<ActionItemAcceptance[]>
+}
+
+async function parseBinding<T>(promise: Promise<string>): Promise<T> {
+  return JSON.parse(await promise) as T
 }

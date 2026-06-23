@@ -1,6 +1,7 @@
 import { ConfigProvider, theme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useEffect, useState } from 'react'
+import { AgentPage } from './AgentPage'
 import { api, StartupStatus } from './api'
 import { AppLayout, Page } from './components/AppLayout'
 import { DashboardPage } from './features/dashboard/DashboardPage'
@@ -73,6 +74,7 @@ function App() {
         {page === 'stats' && <StatsPage connected={connected} />}
         {page === 'summaries' && <SummariesPage connected={connected} />}
         {page === 'memories' && <MemoriesPage connected={connected} />}
+        {page === 'agent' && <AgentPage connected={connected} />}
       </AppLayout>
     </ConfigProvider>
   )

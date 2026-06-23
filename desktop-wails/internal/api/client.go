@@ -302,6 +302,95 @@ func (c *Client) DeleteCompletedTask(ctx context.Context, id int64) error {
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
+func (c *Client) PreviewAgentContext(ctx context.Context, goal, targetDate string, recentDays int) (*agentContextPreviewResponse, error) {
+	var result agentContextPreviewResponse
+	req := agentContextPreviewRequest{Goal: goal, TargetDate: targetDate, RecentDays: recentDays}
+	if err := c.doJSON(ctx, http.MethodPost, "/api/agent/context-preview", req, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) CreateAgentRun(ctx context.Context, goal, targetDate string, recentDays int) (*agentRunResponse, error) {
+	var result agentRunResponse
+	req := agentRunRequest{Goal: goal, TargetDate: targetDate, RecentDays: recentDays}
+	if err := c.doJSON(ctx, http.MethodPost, "/api/agent/runs", req, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) ListAgentRuns(ctx context.Context, status string, limit int) ([]agentRunListItem, error) {
+	values := url.Values{}
+	if status != "" {
+		values.Set("status", status)
+	}
+	if limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	path := "/api/agent/runs"
+	if encoded := values.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	var result struct {
+		Runs []agentRunListItem `json:"runs"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Runs, nil
+}
+
+func (c *Client) GetAgentRun(ctx context.Context, id int64) (*agentRunResponse, error) {
+	var result agentRunResponse
+	if err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/api/agent/runs/%d", id), nil, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) GetAgentTrajectory(ctx context.Context, id int64) (*agentTrajectory, error) {
+	var result agentTrajectory
+	if err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/api/agent/runs/%d/trajectory", id), nil, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) ListAgentActionProposals(ctx context.Context, status string) ([]agentActionProposal, error) {
+	path := "/api/agent/action-proposals"
+	if status != "" {
+		path += "?status=" + url.QueryEscape(status)
+	}
+	var result struct {
+		Proposals []agentActionProposal `json:"proposals"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Proposals, nil
+}
+
+func (c *Client) AcceptAgentActionProposal(ctx context.Context, id int64) (*agentActionProposal, error) {
+	var result struct {
+		Proposal agentActionProposal `json:"proposal"`
+	}
+	if err := c.doJSON(ctx, http.MethodPost, fmt.Sprintf("/api/agent/action-proposals/%d/accept", id), nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Proposal, nil
+}
+
+func (c *Client) RejectAgentActionProposal(ctx context.Context, id int64) (*agentActionProposal, error) {
+	var result struct {
+		Proposal agentActionProposal `json:"proposal"`
+	}
+	if err := c.doJSON(ctx, http.MethodPost, fmt.Sprintf("/api/agent/action-proposals/%d/reject", id), nil, &result); err != nil {
+		return nil, err
+	}
+	return &result.Proposal, nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path string, body any, out any) error {
 	var reader io.Reader
 	if body != nil {

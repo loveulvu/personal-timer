@@ -260,6 +260,159 @@ type LLMTestResponse struct {
 	Message string `json:"message"`
 }
 
+type agentContextPreviewRequest struct {
+	Goal       string `json:"goal"`
+	TargetDate string `json:"target_date"`
+	RecentDays int    `json:"recent_days"`
+}
+
+type agentContextPreviewResponse struct {
+	ContextPack agentContextPack `json:"context_pack"`
+}
+
+type agentContextPack struct {
+	UserGoal          string                   `json:"user_goal"`
+	TargetDate        string                   `json:"target_date"`
+	TodayTasks        []agentContextTask       `json:"today_tasks"`
+	RecentSummaries   []agentContextSummary    `json:"recent_summaries"`
+	Memories          []agentContextMemory     `json:"memories"`
+	PlanRisk          any                      `json:"plan_risk,omitempty"`
+	RecentActionItems []agentContextActionItem `json:"recent_action_items"`
+	Constraints       []string                 `json:"constraints"`
+	OmittedSections   []string                 `json:"omitted_sections"`
+}
+
+type agentContextTask struct {
+	ID               int64  `json:"id"`
+	ProjectID        *int64 `json:"project_id"`
+	ProjectName      string `json:"project_name,omitempty"`
+	TaskDate         string `json:"task_date"`
+	Title            string `json:"title"`
+	EstimatedMinutes int    `json:"estimated_minutes"`
+	ActualMinutes    int    `json:"actual_minutes"`
+	Status           string `json:"status"`
+}
+
+type agentContextSummary struct {
+	ID                 int64  `json:"id"`
+	SummaryType        string `json:"summary_type"`
+	StartDate          string `json:"start_date"`
+	EndDate            string `json:"end_date"`
+	ContentExcerpt     string `json:"content_excerpt"`
+	ActionItemsExcerpt string `json:"action_items_excerpt,omitempty"`
+	CreatedAt          string `json:"created_at"`
+}
+
+type agentContextMemory struct {
+	ID                 int64   `json:"id"`
+	MemoryType         string  `json:"memory_type"`
+	ScopeType          string  `json:"scope_type"`
+	ProjectID          *int64  `json:"project_id,omitempty"`
+	Title              string  `json:"title"`
+	Content            string  `json:"content"`
+	Confidence         float64 `json:"confidence"`
+	SupportCount       int     `json:"support_count"`
+	ContradictionCount int     `json:"contradiction_count"`
+	EvidenceCount      int     `json:"evidence_count"`
+	EvidenceExcerpt    string  `json:"evidence_excerpt,omitempty"`
+	Status             string  `json:"status"`
+	LastSeenAt         string  `json:"last_seen_at"`
+}
+
+type agentContextActionItem struct {
+	SummaryID    int64  `json:"summary_id"`
+	ItemIndex    int    `json:"item_index"`
+	Content      string `json:"content"`
+	Accepted     bool   `json:"accepted"`
+	TargetDate   string `json:"target_date,omitempty"`
+	TargetTaskID *int64 `json:"target_task_id,omitempty"`
+}
+
+type agentRunRequest struct {
+	Goal       string `json:"goal"`
+	TargetDate string `json:"target_date"`
+	RecentDays int    `json:"recent_days"`
+}
+
+type agentRunResponse struct {
+	Run       agentRun              `json:"run"`
+	Steps     []agentStep           `json:"steps"`
+	Proposals []agentActionProposal `json:"proposals,omitempty"`
+}
+
+type agentRun struct {
+	ID             int64   `json:"id"`
+	UserGoal       string  `json:"user_goal"`
+	TargetDate     string  `json:"target_date"`
+	Status         string  `json:"status"`
+	FinalAnswer    string  `json:"final_answer,omitempty"`
+	PendingActions any     `json:"pending_actions,omitempty"`
+	ErrorMessage   string  `json:"error_message,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	CompletedAt    *string `json:"completed_at,omitempty"`
+}
+
+type agentRunListItem struct {
+	ID                   int64   `json:"id"`
+	UserGoal             string  `json:"user_goal"`
+	TargetDate           string  `json:"target_date"`
+	Status               string  `json:"status"`
+	FinalAnswerExcerpt   string  `json:"final_answer_excerpt,omitempty"`
+	ProposalCount        int     `json:"proposal_count"`
+	PendingProposalCount int     `json:"pending_proposal_count"`
+	StepCount            int     `json:"step_count"`
+	CreatedAt            string  `json:"created_at"`
+	CompletedAt          *string `json:"completed_at,omitempty"`
+}
+
+type agentStep struct {
+	ID             int64  `json:"id"`
+	RunID          int64  `json:"run_id"`
+	StepIndex      int    `json:"step_index"`
+	StepType       string `json:"step_type"`
+	ToolName       string `json:"tool_name,omitempty"`
+	ToolInput      any    `json:"tool_input,omitempty"`
+	ToolOutput     any    `json:"tool_output,omitempty"`
+	ThoughtSummary string `json:"thought_summary,omitempty"`
+	Status         string `json:"status"`
+	ErrorMessage   string `json:"error_message,omitempty"`
+	CreatedAt      string `json:"created_at"`
+}
+
+type agentActionProposal struct {
+	ID               int64   `json:"id"`
+	RunID            int64   `json:"run_id"`
+	StepID           int64   `json:"step_id"`
+	ToolName         string  `json:"tool_name"`
+	ActionType       string  `json:"action_type"`
+	Payload          any     `json:"payload,omitempty"`
+	RiskLevel        string  `json:"risk_level"`
+	Status           string  `json:"status"`
+	CreatedAt        string  `json:"created_at"`
+	DecidedAt        *string `json:"decided_at,omitempty"`
+	ExecutedAt       *string `json:"executed_at,omitempty"`
+	Result           any     `json:"result,omitempty"`
+	ErrorMessage     string  `json:"error_message,omitempty"`
+	TargetEntityType string  `json:"target_entity_type,omitempty"`
+	TargetEntityID   *int64  `json:"target_entity_id,omitempty"`
+}
+
+type agentContextSnapshot struct {
+	ID              int64            `json:"id"`
+	RunID           int64            `json:"run_id"`
+	ContextPack     agentContextPack `json:"context_pack"`
+	TokenEstimate   int              `json:"token_estimate"`
+	OmittedSections []string         `json:"omitted_sections"`
+	CreatedAt       string           `json:"created_at"`
+}
+
+type agentTrajectory struct {
+	Run             agentRun              `json:"run"`
+	ContextSnapshot *agentContextSnapshot `json:"context_snapshot,omitempty"`
+	Steps           []agentStep           `json:"steps"`
+	Proposals       []agentActionProposal `json:"proposals"`
+}
+
 type dataResponse[T any] struct {
 	Status string `json:"status"`
 	Data   T      `json:"data"`

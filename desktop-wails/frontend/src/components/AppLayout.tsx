@@ -1,11 +1,12 @@
 import {
+  ApiOutlined,
   BarChartOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  FieldTimeOutlined,
   FileTextOutlined,
   FolderOutlined,
   ReloadOutlined,
-  FieldTimeOutlined,
 } from '@ant-design/icons'
 import { Alert, Button, Layout, Menu, Typography } from 'antd'
 import { ReactNode } from 'react'
@@ -13,7 +14,7 @@ import { StartupStatus } from '../api'
 import { errorMessage } from '../utils/labels'
 import { StatusBar } from './StatusBar'
 
-export type Page = 'dashboard' | 'projects' | 'stats' | 'summaries' | 'memories'
+export type Page = 'dashboard' | 'projects' | 'stats' | 'summaries' | 'memories' | 'agent'
 
 type AppLayoutProps = {
   page: Page
@@ -59,6 +60,7 @@ export function AppLayout({
             { key: 'stats', icon: <BarChartOutlined />, label: '统计' },
             { key: 'summaries', icon: <FileTextOutlined />, label: '总结' },
             { key: 'memories', icon: <DatabaseOutlined />, label: '记忆' },
+            { key: 'agent', icon: <ApiOutlined />, label: 'Agent' },
           ]}
         />
         <div className="sidebar-footer">

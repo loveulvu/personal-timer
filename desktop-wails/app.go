@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 
 	"personal-study-timer-desktop/internal/api"
 )
@@ -135,4 +136,55 @@ func (a *App) UpdateCompletedTask(id int64, input api.UpdateCompletedTaskRequest
 
 func (a *App) DeleteCompletedTask(id int64) error {
 	return a.client.DeleteCompletedTask(a.ctx, id)
+}
+
+func (a *App) PreviewAgentContext(goal string, targetDate string, recentDays int) (string, error) {
+	result, err := a.client.PreviewAgentContext(a.ctx, goal, targetDate, recentDays)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) CreateAgentRun(goal string, targetDate string, recentDays int) (string, error) {
+	result, err := a.client.CreateAgentRun(a.ctx, goal, targetDate, recentDays)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) ListAgentRuns(status string, limit int) (string, error) {
+	result, err := a.client.ListAgentRuns(a.ctx, status, limit)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) GetAgentRun(id int64) (string, error) {
+	result, err := a.client.GetAgentRun(a.ctx, id)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) GetAgentTrajectory(id int64) (string, error) {
+	result, err := a.client.GetAgentTrajectory(a.ctx, id)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) ListAgentActionProposals(status string) (string, error) {
+	result, err := a.client.ListAgentActionProposals(a.ctx, status)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) AcceptAgentActionProposal(id int64) (string, error) {
+	result, err := a.client.AcceptAgentActionProposal(a.ctx, id)
+	return marshalAgentResult(result, err)
+}
+
+func (a *App) RejectAgentActionProposal(id int64) (string, error) {
+	result, err := a.client.RejectAgentActionProposal(a.ctx, id)
+	return marshalAgentResult(result, err)
+}
+
+func marshalAgentResult(value any, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
