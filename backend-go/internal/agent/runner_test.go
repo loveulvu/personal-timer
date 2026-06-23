@@ -368,6 +368,56 @@ func TestRunnerWriteToolRequiresConfirmationWithoutWrite(t *testing.T) {
 	}
 }
 
+func TestDeterministicModelCreatesTaskProposalForDemoGoal(t *testing.T) {
+	readCalls := 0
+	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), NewDeterministicModelClient())
+
+	result, err := runner.Start(context.Background(), AgentRunRequest{
+		Goal:       "帮我创建一个今天 60 分钟的 Go GC 复习任务",
+		TargetDate: "2026-06-23",
+		RecentDays: 5,
+	})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	if result.Run.Status != AgentRunStatusRequiresConfirmation {
+		t.Fatalf("status = %s, want requires_confirmation", result.Run.Status)
+	}
+	if len(result.Proposals) != 1 || result.Proposals[0].Status != ActionProposalStatusPending {
+		t.Fatalf("proposals = %+v, want one pending proposal", result.Proposals)
+	}
+	if result.Proposals[0].ActionType != "create_daily_task" {
+		t.Fatalf("action_type = %s, want create_daily_task", result.Proposals[0].ActionType)
+	}
+	if !strings.Contains(string(result.Proposals[0].Payload), `"title":"Go GC 复习"`) ||
+		!strings.Contains(string(result.Proposals[0].Payload), `"estimated_minutes":60`) {
+		t.Fatalf("payload = %s", result.Proposals[0].Payload)
+	}
+	if readCalls != 0 {
+		t.Fatalf("side-effect calls = %d, want 0", readCalls)
+	}
+}
+
+func TestDeterministicModelPlanningGoalStaysReadOnlyCompleted(t *testing.T) {
+	readCalls := 0
+	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), NewDeterministicModelClient())
+
+	result, err := runner.Start(context.Background(), AgentRunRequest{
+		Goal:       "根据最近 5 天学习记录，帮我安排今天的 Go 后端复习计划",
+		TargetDate: "2026-06-23",
+		RecentDays: 5,
+	})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	if result.Run.Status != AgentRunStatusCompleted {
+		t.Fatalf("status = %s, want completed", result.Run.Status)
+	}
+	if len(result.Proposals) != 0 {
+		t.Fatalf("proposals = %+v, want none", result.Proposals)
+	}
+}
+
 func TestRunnerUnknownToolFailsRun(t *testing.T) {
 	readCalls := 0
 	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
