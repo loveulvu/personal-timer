@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"personal/internal/agent"
 	"personal/internal/dailytasks"
 	"personal/internal/db"
 	"personal/internal/feedback"
@@ -92,6 +93,12 @@ func main() {
 	memoryRepo := memories.NewRepository(mysqlDB)
 	memoryExtractor := memories.NewExtractor(memoryRepo)
 	memoryRecall := memories.NewRecallService(memoryRepo)
+	contextBuilder := agent.NewContextPackBuilder(dailyTaskService, planService, summaryService, memoryRepo)
+	agentRegistry := agent.NewDefaultToolRegistry(dailyTaskService, planService, memoryRecall)
+	agentHandler := agent.NewHandler(agentRegistry, contextBuilder)
+	api.GET("/agent/tools", agentHandler.ListTools)
+	api.POST("/agent/tool-call", agentHandler.CallTool)
+	api.POST("/agent/context-preview", agentHandler.ContextPreview)
 	summaryService.SetMemoryExtractor(memoryExtractor)
 	summaryService.SetMemoryRecall(memoryRecall)
 	summaryHandler := summaries.NewHandler(summaryService)
