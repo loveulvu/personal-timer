@@ -19,8 +19,9 @@ type AgentRunRequest struct {
 }
 
 type AgentRunResponse struct {
-	Run   AgentRun    `json:"run"`
-	Steps []AgentStep `json:"steps"`
+	Run       AgentRun         `json:"run"`
+	Steps     []AgentStep      `json:"steps"`
+	Proposals []ActionProposal `json:"proposals,omitempty"`
 }
 
 type agentRunStore interface {
@@ -29,6 +30,11 @@ type agentRunStore interface {
 	CreateAgentStep(ctx context.Context, input CreateAgentStepInput) (*AgentStep, error)
 	GetAgentRun(ctx context.Context, id int64) (*AgentRun, error)
 	ListAgentSteps(ctx context.Context, runID int64) ([]AgentStep, error)
+	CreateActionProposal(ctx context.Context, input CreateActionProposalInput) (*ActionProposal, error)
+	ListActionProposals(ctx context.Context, filter ActionProposalFilter) ([]ActionProposal, error)
+	CreateContextSnapshot(ctx context.Context, input CreateContextSnapshotInput) (*AgentContextSnapshot, error)
+	GetContextSnapshot(ctx context.Context, runID int64) (*AgentContextSnapshot, error)
+	ListAgentRuns(ctx context.Context, filter AgentRunFilter) ([]AgentRunListItem, error)
 }
 
 type Runner struct {
@@ -65,6 +71,15 @@ func (r *Runner) Start(ctx context.Context, req AgentRunRequest) (*AgentRunRespo
 		return r.fail(ctx, run.ID, stepIndex, AgentStepTypeBuildContext, "", nil, nil, "", "context_build_failed")
 	}
 	packJSON, _ := json.Marshal(pack)
+	omittedJSON, _ := json.Marshal(pack.OmittedSections)
+	if _, err := r.store.CreateContextSnapshot(ctx, CreateContextSnapshotInput{
+		RunID:               run.ID,
+		ContextJSON:         packJSON,
+		TokenEstimate:       estimateContextTokens(packJSON),
+		OmittedSectionsJSON: omittedJSON,
+	}); err != nil {
+		return nil, err
+	}
 	if _, err := r.store.CreateAgentStep(ctx, CreateAgentStepInput{
 		RunID:      run.ID,
 		StepIndex:  stepIndex,
@@ -155,7 +170,26 @@ func (r *Runner) Start(ctx context.Context, req AgentRunRequest) (*AgentRunRespo
 				if result.ProposedAction == nil {
 					return r.finish(ctx, run.ID, AgentRunStatusFailed, "", nil, "missing_action_proposal")
 				}
-				pending := []ActionProposal{*result.ProposedAction}
+				proposal, err := r.store.CreateActionProposal(ctx, CreateActionProposalInput{
+					RunID:      run.ID,
+					ToolName:   result.ProposedAction.ToolName,
+					ActionType: result.ProposedAction.ActionType,
+					Payload:    result.ProposedAction.Payload,
+					RiskLevel:  result.ProposedAction.RiskLevel,
+					Status:     ActionProposalStatusPending,
+				})
+				if err != nil {
+					return nil, err
+				}
+				_, _ = r.store.CreateAgentStep(ctx, CreateAgentStepInput{
+					RunID:      run.ID,
+					StepIndex:  stepIndex,
+					StepType:   AgentStepTypeActionProposal,
+					ToolName:   call.ToolName,
+					ToolOutput: mustJSON(proposal),
+					Status:     AgentStepStatusCompleted,
+				})
+				pending := []ActionProposal{*proposal}
 				return r.finish(ctx, run.ID, AgentRunStatusRequiresConfirmation, "", mustJSON(pending), "")
 			}
 			observations = append(observations, ToolObservation{ToolName: call.ToolName, Output: result.Output})
@@ -174,7 +208,41 @@ func (r *Runner) Get(ctx context.Context, id int64) (*AgentRunResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &AgentRunResponse{Run: *run, Steps: steps}, nil
+	proposals, err := r.store.ListActionProposals(ctx, ActionProposalFilter{RunID: id})
+	if err != nil {
+		return nil, err
+	}
+	return &AgentRunResponse{Run: *run, Steps: steps, Proposals: proposals}, nil
+}
+
+func (r *Runner) GetTrajectory(ctx context.Context, id int64) (*AgentTrajectory, error) {
+	run, err := r.store.GetAgentRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := r.store.GetContextSnapshot(ctx, id)
+	if err != nil && !errors.Is(err, ErrContextSnapshotNotFound) {
+		return nil, err
+	}
+	steps, err := r.store.ListAgentSteps(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	proposals, err := r.store.ListActionProposals(ctx, ActionProposalFilter{RunID: id})
+	if err != nil {
+		return nil, err
+	}
+	return &AgentTrajectory{Run: *run, ContextSnapshot: snapshot, Steps: steps, Proposals: proposals}, nil
+}
+
+func (r *Runner) ListRuns(ctx context.Context, status string, limit int) ([]AgentRunListItem, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return r.store.ListAgentRuns(ctx, AgentRunFilter{Status: status, Limit: limit})
 }
 
 func (r *Runner) fail(ctx context.Context, runID int64, stepIndex int, stepType AgentStepType, toolName string, input, output json.RawMessage, thought, message string) (*AgentRunResponse, error) {
@@ -230,4 +298,16 @@ func mustJSON(value any) json.RawMessage {
 		return json.RawMessage(`null`)
 	}
 	return data
+}
+
+func estimateContextTokens(data []byte) int {
+	// ponytail: rough estimate for observability only; replace with tokenizer if exact budgeting matters.
+	if len(data) == 0 {
+		return 0
+	}
+	estimate := len(data) / 4
+	if estimate == 0 {
+		return 1
+	}
+	return estimate
 }

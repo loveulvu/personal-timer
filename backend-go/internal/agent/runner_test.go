@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,14 +15,26 @@ import (
 )
 
 type memoryAgentStore struct {
-	nextRunID  int64
-	nextStepID int64
-	runs       map[int64]*AgentRun
-	steps      []AgentStep
+	nextRunID      int64
+	nextStepID     int64
+	nextProposalID int64
+	nextSnapshotID int64
+	runs           map[int64]*AgentRun
+	steps          []AgentStep
+	proposals      map[int64]*ActionProposal
+	snapshots      map[int64]*AgentContextSnapshot
 }
 
 func newMemoryAgentStore() *memoryAgentStore {
-	return &memoryAgentStore{nextRunID: 1, nextStepID: 1, runs: map[int64]*AgentRun{}}
+	return &memoryAgentStore{
+		nextRunID:      1,
+		nextStepID:     1,
+		nextProposalID: 1,
+		nextSnapshotID: 1,
+		runs:           map[int64]*AgentRun{},
+		proposals:      map[int64]*ActionProposal{},
+		snapshots:      map[int64]*AgentContextSnapshot{},
+	}
 }
 
 func (s *memoryAgentStore) CreateAgentRun(ctx context.Context, input CreateAgentRunInput) (*AgentRun, error) {
@@ -90,8 +103,143 @@ func (s *memoryAgentStore) ListAgentSteps(ctx context.Context, runID int64) ([]A
 	return steps, nil
 }
 
+func (s *memoryAgentStore) CreateContextSnapshot(ctx context.Context, input CreateContextSnapshotInput) (*AgentContextSnapshot, error) {
+	snapshot := &AgentContextSnapshot{
+		ID:                  s.nextSnapshotID,
+		RunID:               input.RunID,
+		ContextJSON:         input.ContextJSON,
+		TokenEstimate:       input.TokenEstimate,
+		OmittedSectionsJSON: input.OmittedSectionsJSON,
+		CreatedAt:           time.Now(),
+	}
+	_ = json.Unmarshal(snapshot.ContextJSON, &snapshot.ContextPack)
+	_ = json.Unmarshal(snapshot.OmittedSectionsJSON, &snapshot.OmittedSections)
+	s.nextSnapshotID++
+	s.snapshots[input.RunID] = snapshot
+	return cloneSnapshot(snapshot), nil
+}
+
+func (s *memoryAgentStore) GetContextSnapshot(ctx context.Context, runID int64) (*AgentContextSnapshot, error) {
+	snapshot := s.snapshots[runID]
+	if snapshot == nil {
+		return nil, ErrContextSnapshotNotFound
+	}
+	return cloneSnapshot(snapshot), nil
+}
+
+func (s *memoryAgentStore) ListAgentRuns(ctx context.Context, filter AgentRunFilter) ([]AgentRunListItem, error) {
+	items := make([]AgentRunListItem, 0)
+	for _, run := range s.runs {
+		if filter.Status != "" && string(run.Status) != filter.Status {
+			continue
+		}
+		item := AgentRunListItem{
+			ID:                 run.ID,
+			UserGoal:           run.UserGoal,
+			TargetDate:         run.TargetDate,
+			Status:             run.Status,
+			FinalAnswerExcerpt: run.FinalAnswer,
+			CreatedAt:          run.CreatedAt,
+			CompletedAt:        run.CompletedAt,
+		}
+		for _, step := range s.steps {
+			if step.RunID == run.ID {
+				item.StepCount++
+			}
+		}
+		for _, proposal := range s.proposals {
+			if proposal.RunID == run.ID {
+				item.ProposalCount++
+				if proposal.Status == ActionProposalStatusPending {
+					item.PendingProposalCount++
+				}
+			}
+		}
+		items = append(items, item)
+		if filter.Limit > 0 && len(items) >= filter.Limit {
+			break
+		}
+	}
+	return items, nil
+}
+
+func (s *memoryAgentStore) CreateActionProposal(ctx context.Context, input CreateActionProposalInput) (*ActionProposal, error) {
+	status := input.Status
+	if status == "" {
+		status = ActionProposalStatusPending
+	}
+	proposal := &ActionProposal{
+		ID:         s.nextProposalID,
+		RunID:      input.RunID,
+		ToolName:   input.ToolName,
+		ActionType: input.ActionType,
+		Payload:    input.Payload,
+		RiskLevel:  input.RiskLevel,
+		Status:     status,
+		CreatedAt:  time.Now(),
+	}
+	if input.StepID != nil {
+		proposal.StepID = *input.StepID
+	}
+	s.nextProposalID++
+	s.proposals[proposal.ID] = proposal
+	return cloneProposal(proposal), nil
+}
+
+func (s *memoryAgentStore) GetActionProposal(ctx context.Context, id int64) (*ActionProposal, error) {
+	proposal := s.proposals[id]
+	if proposal == nil {
+		return nil, ErrProposalNotFound
+	}
+	return cloneProposal(proposal), nil
+}
+
+func (s *memoryAgentStore) ListActionProposals(ctx context.Context, filter ActionProposalFilter) ([]ActionProposal, error) {
+	items := make([]ActionProposal, 0)
+	for _, proposal := range s.proposals {
+		if filter.RunID > 0 && proposal.RunID != filter.RunID {
+			continue
+		}
+		if filter.Status != "" && string(proposal.Status) != filter.Status {
+			continue
+		}
+		items = append(items, *cloneProposal(proposal))
+	}
+	return items, nil
+}
+
+func (s *memoryAgentStore) UpdateActionProposal(ctx context.Context, id int64, input UpdateActionProposalInput) (*ActionProposal, error) {
+	proposal := s.proposals[id]
+	if proposal == nil {
+		return nil, ErrProposalNotFound
+	}
+	proposal.Status = input.Status
+	proposal.Result = input.Result
+	proposal.ErrorMessage = input.ErrorMessage
+	proposal.TargetEntityType = input.TargetEntityType
+	proposal.TargetEntityID = input.TargetEntityID
+	now := time.Now()
+	if input.Decide && proposal.DecidedAt == nil {
+		proposal.DecidedAt = &now
+	}
+	if input.Execute && proposal.ExecutedAt == nil {
+		proposal.ExecutedAt = &now
+	}
+	return cloneProposal(proposal), nil
+}
+
 func cloneRun(run *AgentRun) *AgentRun {
 	copied := *run
+	return &copied
+}
+
+func cloneProposal(proposal *ActionProposal) *ActionProposal {
+	copied := *proposal
+	return &copied
+}
+
+func cloneSnapshot(snapshot *AgentContextSnapshot) *AgentContextSnapshot {
+	copied := *snapshot
 	return &copied
 }
 
@@ -149,6 +297,29 @@ func TestRunnerCreatesRunAndBuildContextStep(t *testing.T) {
 	}
 }
 
+func TestRunnerSavesContextSnapshot(t *testing.T) {
+	readCalls := 0
+	store := newMemoryAgentStore()
+	runner := NewRunner(store, testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
+		decisions: []AgentDecision{{FinalAnswer: "done", ThoughtSummary: "short"}},
+	})
+
+	result, err := runner.Start(context.Background(), AgentRunRequest{Goal: "plan", TargetDate: "2026-06-23", RecentDays: 99})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	snapshot, err := store.GetContextSnapshot(context.Background(), result.Run.ID)
+	if err != nil {
+		t.Fatalf("GetContextSnapshot err = %v", err)
+	}
+	if snapshot.TokenEstimate <= 0 {
+		t.Fatalf("token estimate = %d, want > 0", snapshot.TokenEstimate)
+	}
+	if !contains(snapshot.OmittedSections, "recent_days_capped_to_14") {
+		t.Fatalf("omitted = %v, want recent_days_capped_to_14", snapshot.OmittedSections)
+	}
+}
+
 func TestRunnerExecutesReadToolAndStoresOutput(t *testing.T) {
 	readCalls := 0
 	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
@@ -189,6 +360,9 @@ func TestRunnerWriteToolRequiresConfirmationWithoutWrite(t *testing.T) {
 	if len(result.Run.PendingActions) == 0 || !strings.Contains(string(result.Run.PendingActions), "create_daily_task") {
 		t.Fatalf("pending actions = %s", result.Run.PendingActions)
 	}
+	if len(result.Proposals) != 1 || result.Proposals[0].Status != ActionProposalStatusPending {
+		t.Fatalf("proposals = %+v, want pending proposal", result.Proposals)
+	}
 	if readCalls != 0 {
 		t.Fatalf("read/write side-effect calls = %d, want 0", readCalls)
 	}
@@ -206,6 +380,28 @@ func TestRunnerUnknownToolFailsRun(t *testing.T) {
 	}
 	if result.Run.Status != AgentRunStatusFailed || result.Run.ErrorMessage == "" {
 		t.Fatalf("run = %+v, want failed", result.Run)
+	}
+}
+
+func TestRunnerTrajectoryIncludesSnapshotStepsAndProposals(t *testing.T) {
+	readCalls := 0
+	store := newMemoryAgentStore()
+	runner := NewRunner(store, testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
+		decisions: []AgentDecision{{
+			ToolCalls: []ToolCall{{ToolName: "create_daily_task", Input: json.RawMessage(`{"date":"2026-06-23","project_id":1,"title":"Go review","estimated_minutes":60}`)}},
+		}},
+	})
+	run, err := runner.Start(context.Background(), AgentRunRequest{Goal: "plan", TargetDate: "2026-06-23"})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+
+	trajectory, err := runner.GetTrajectory(context.Background(), run.Run.ID)
+	if err != nil {
+		t.Fatalf("GetTrajectory err = %v", err)
+	}
+	if trajectory.ContextSnapshot == nil || len(trajectory.Steps) == 0 || len(trajectory.Proposals) != 1 {
+		t.Fatalf("trajectory = %+v", trajectory)
 	}
 }
 
@@ -257,6 +453,24 @@ func TestRunnerStoresOnlyThoughtSummary(t *testing.T) {
 	}
 }
 
+func TestRunnerListRuns(t *testing.T) {
+	readCalls := 0
+	store := newMemoryAgentStore()
+	runner := NewRunner(store, testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
+		decisions: []AgentDecision{{FinalAnswer: "done", ThoughtSummary: "short"}},
+	})
+	if _, err := runner.Start(context.Background(), AgentRunRequest{Goal: "plan", TargetDate: "2026-06-23"}); err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	items, err := runner.ListRuns(context.Background(), "", 20)
+	if err != nil {
+		t.Fatalf("ListRuns err = %v", err)
+	}
+	if len(items) != 1 || items[0].StepCount == 0 {
+		t.Fatalf("items = %+v", items)
+	}
+}
+
 func TestAgentRunHandlerInvalidInputReturns400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	readCalls := 0
@@ -269,6 +483,50 @@ func TestAgentRunHandlerInvalidInputReturns400(t *testing.T) {
 	router.ServeHTTP(resp, httptest.NewRequest(http.MethodPost, "/api/agent/runs", strings.NewReader(`{"goal":"","target_date":"bad"}`)))
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", resp.Code)
+	}
+}
+
+func TestTrajectoryHandlerReturns400ForInvalidID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	readCalls := 0
+	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{})
+	handler := NewHandler(testRegistryWithReadAndWrite(&readCalls), testContextBuilder(), runner)
+	router := gin.New()
+	router.GET("/api/agent/runs/:id/trajectory", handler.GetRunTrajectory)
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, httptest.NewRequest(http.MethodGet, "/api/agent/runs/bad/trajectory", nil))
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.Code)
+	}
+}
+
+func TestTrajectoryAndRunsHandlersReturnData(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	readCalls := 0
+	store := newMemoryAgentStore()
+	runner := NewRunner(store, testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), &scriptedModel{
+		decisions: []AgentDecision{{FinalAnswer: "done", ThoughtSummary: "short"}},
+	})
+	run, err := runner.Start(context.Background(), AgentRunRequest{Goal: "plan", TargetDate: "2026-06-23"})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	handler := NewHandler(testRegistryWithReadAndWrite(&readCalls), testContextBuilder(), runner)
+	router := gin.New()
+	router.GET("/api/agent/runs", handler.ListRuns)
+	router.GET("/api/agent/runs/:id/trajectory", handler.GetRunTrajectory)
+
+	trajectoryResp := httptest.NewRecorder()
+	router.ServeHTTP(trajectoryResp, httptest.NewRequest(http.MethodGet, "/api/agent/runs/"+strconv.FormatInt(run.Run.ID, 10)+"/trajectory", nil))
+	if trajectoryResp.Code != http.StatusOK || !strings.Contains(trajectoryResp.Body.String(), "context_snapshot") {
+		t.Fatalf("trajectory status = %d body = %s", trajectoryResp.Code, trajectoryResp.Body.String())
+	}
+
+	listResp := httptest.NewRecorder()
+	router.ServeHTTP(listResp, httptest.NewRequest(http.MethodGet, "/api/agent/runs", nil))
+	if listResp.Code != http.StatusOK || !strings.Contains(listResp.Body.String(), "runs") {
+		t.Fatalf("list status = %d body = %s", listResp.Code, listResp.Body.String())
 	}
 }
 
