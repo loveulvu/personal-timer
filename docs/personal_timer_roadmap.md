@@ -847,3 +847,26 @@ Current limits:
 - No complex timeline.
 - No LLM evidence summary.
 - No change to Memory Recall.
+
+## V12 Action Item Acceptance Tracking V1
+
+Goal:
+- Persist action item acceptance status and the task created or matched by acceptance.
+
+Value:
+- Gives later action item acceptance-rate and completion-rate evaluation a reliable data base.
+
+Backend:
+- Adds `summary_action_item_acceptances`.
+- Existing accept endpoint records `accepted` or `already_exists`.
+- New `GET /api/summaries/:summary_id/action-item-acceptances` returns acceptance records.
+
+Frontend:
+- Summary action items show accepted state, target date, and target task id.
+- Accepted items disable the accept button.
+
+Current limits:
+- No Evaluation Dashboard.
+- No automatic effectiveness judgment.
+- No automatic schedule reshuffle.
+- No LLM.

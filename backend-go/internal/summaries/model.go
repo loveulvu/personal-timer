@@ -55,10 +55,15 @@ type AcceptActionItemRequest struct {
 }
 
 type AcceptActionItemResult struct {
-	Created       bool               `json:"created"`
-	AlreadyExists bool               `json:"already_exists"`
-	Task          *AcceptedDailyTask `json:"task,omitempty"`
-	Message       string             `json:"message,omitempty"`
+	SummaryID        int64              `json:"summary_id"`
+	ItemIndex        int                `json:"item_index"`
+	TargetDate       string             `json:"target_date"`
+	TargetTaskID     *int64             `json:"target_task_id,omitempty"`
+	Created          bool               `json:"created"`
+	AlreadyExists    bool               `json:"already_exists"`
+	AcceptanceStatus string             `json:"acceptance_status"`
+	Task             *AcceptedDailyTask `json:"task,omitempty"`
+	Message          string             `json:"message,omitempty"`
 }
 
 type AcceptedDailyTask struct {
@@ -68,6 +73,24 @@ type AcceptedDailyTask struct {
 	Title            string `json:"title"`
 	EstimatedMinutes int    `json:"estimated_minutes"`
 	Status           string `json:"status"`
+}
+
+type ActionItemAcceptance struct {
+	ID           int64  `json:"id"`
+	SummaryID    int64  `json:"summary_id"`
+	ItemIndex    int    `json:"item_index"`
+	TargetDate   string `json:"target_date"`
+	TargetTaskID *int64 `json:"target_task_id,omitempty"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
+}
+
+type CreateActionItemAcceptanceInput struct {
+	SummaryID    int64
+	ItemIndex    int
+	TargetDate   string
+	TargetTaskID *int64
+	Status       string
 }
 
 type summaryProjectRow struct {

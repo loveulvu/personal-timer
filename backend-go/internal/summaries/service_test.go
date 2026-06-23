@@ -990,6 +990,49 @@ func TestAcceptActionItemReturnsExistingTask(t *testing.T) {
 	}
 }
 
+func TestAcceptActionItemRecordsAcceptance(t *testing.T) {
+	repo := acceptFakeRepo([]SummaryActionItem{{
+		Type: "schedule", Title: "accept me", SuggestedProject: "algo", SuggestedMinutes: 45,
+	}})
+	repo.project = &summaryProjectRow{ID: 11, Name: "algo", IncludeInSummary: true}
+
+	result, err := (&Service{repo: repo}).AcceptActionItem(context.Background(), 7, 0, "2026-06-19")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AcceptanceStatus != "accepted" || result.TargetTaskID == nil || *result.TargetTaskID != 123 {
+		t.Fatalf("result = %+v, want accepted task 123", result)
+	}
+	if repo.acceptance == nil || repo.acceptance.Status != "accepted" || repo.acceptance.SummaryID != 7 || repo.acceptance.ItemIndex != 0 {
+		t.Fatalf("acceptance = %+v, want accepted record", repo.acceptance)
+	}
+
+	repo.existingTask = &AcceptedDailyTask{ID: 99, ProjectID: 11, TaskDate: "2026-06-19", Title: "accept me", EstimatedMinutes: 45, Status: "planned"}
+	repo.createdTask = nil
+	repo.acceptance = nil
+	result, err = (&Service{repo: repo}).AcceptActionItem(context.Background(), 7, 0, "2026-06-19")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AcceptanceStatus != "already_exists" || repo.acceptance == nil || repo.acceptance.TargetTaskID == nil || *repo.acceptance.TargetTaskID != 99 {
+		t.Fatalf("result=%+v acceptance=%+v, want already_exists task 99", result, repo.acceptance)
+	}
+}
+
+func TestListActionItemAcceptances(t *testing.T) {
+	taskID := int64(99)
+	repo := &fakeSummaryRepo{acceptances: []ActionItemAcceptance{{
+		ID: 3, SummaryID: 7, ItemIndex: 0, TargetDate: "2026-06-19", TargetTaskID: &taskID, Status: "accepted",
+	}}}
+	result, err := (&Service{repo: repo}).ListActionItemAcceptances(context.Background(), 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].ID != 3 || result[0].TargetTaskID == nil || *result[0].TargetTaskID != 99 {
+		t.Fatalf("acceptances = %+v, want saved acceptance", result)
+	}
+}
+
 func TestAcceptActionItemRejectsInvalidItemsAndInput(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -1109,6 +1152,8 @@ type fakeSummaryRepo struct {
 	project                   *summaryProjectRow
 	existingTask              *AcceptedDailyTask
 	createdTask               *AcceptedDailyTask
+	acceptance                *ActionItemAcceptance
+	acceptances               []ActionItemAcceptance
 	createErr                 error
 }
 
@@ -1191,6 +1236,25 @@ func (r *fakeSummaryRepo) CreateAcceptedDailyTask(ctx context.Context, targetDat
 		Status:           "planned",
 	}
 	return r.createdTask, nil
+}
+
+func (r *fakeSummaryRepo) CreateOrGetActionItemAcceptance(ctx context.Context, input CreateActionItemAcceptanceInput) (*ActionItemAcceptance, error) {
+	if r.acceptance != nil {
+		return r.acceptance, nil
+	}
+	r.acceptance = &ActionItemAcceptance{
+		ID:           1,
+		SummaryID:    input.SummaryID,
+		ItemIndex:    input.ItemIndex,
+		TargetDate:   input.TargetDate,
+		TargetTaskID: input.TargetTaskID,
+		Status:       input.Status,
+	}
+	return r.acceptance, nil
+}
+
+func (r *fakeSummaryRepo) ListActionItemAcceptances(ctx context.Context, summaryID int64) ([]ActionItemAcceptance, error) {
+	return r.acceptances, nil
 }
 
 func acceptFakeRepo(items []SummaryActionItem) *fakeSummaryRepo {

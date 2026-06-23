@@ -734,3 +734,20 @@ Memory feedback 第一版影响：
 summary / action_item feedback 第一版只记录，不自动影响 Summary、prompt 或 LLM 输出。
 
 当前仍然没有 LLM memory extraction、Agent、RAG、向量库或复杂 memory 管理 UI；memory extraction 仍由确定性规则写入。
+
+## summary_action_item_acceptances
+
+Business purpose:
+- Persist which generated summary action item was accepted, for later acceptance-rate and completion-rate analysis.
+
+Fields:
+- `summary_id`: references `generated_summaries.id`.
+- `item_index`: index inside `generated_summaries.action_items` JSON array.
+- `target_date`: date the item was accepted into.
+- `target_task_id`: created or existing `daily_tasks.id`.
+- `status`: `accepted` or `already_exists`.
+
+Constraints:
+- Unique: `(summary_id, item_index, target_date)`.
+- `summary_id` cascades on summary delete.
+- `target_task_id` is set null if the task is deleted.

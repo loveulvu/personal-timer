@@ -260,6 +260,15 @@ func (c *Client) AcceptSummaryActionItem(ctx context.Context, summaryID int64, i
 	return &result.Data, nil
 }
 
+func (c *Client) ListActionItemAcceptances(ctx context.Context, summaryID int64) ([]ActionItemAcceptance, error) {
+	var result dataResponse[[]ActionItemAcceptance]
+	path := fmt.Sprintf("/api/summaries/%d/action-item-acceptances", summaryID)
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Data, nil
+}
+
 func (c *Client) TestLLM(ctx context.Context) (*LLMTestResponse, error) {
 	var result LLMTestResponse
 	if err := c.doJSON(ctx, http.MethodPost, "/api/llm/test", nil, &result); err != nil {

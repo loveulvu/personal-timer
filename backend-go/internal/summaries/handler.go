@@ -131,7 +131,7 @@ func (h *Handler) GetSummaryByID(c *gin.Context) {
 }
 
 func (h *Handler) AcceptActionItem(c *gin.Context) {
-	summaryID, err := strconv.ParseInt(c.Param("summary_id"), 10, 64)
+	summaryID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || summaryID <= 0 {
 		writeError(c, 400, "invalid summary id")
 		return
@@ -169,9 +169,23 @@ func (h *Handler) AcceptActionItem(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"status": "success",
+		"status": "ok",
 		"data":   result,
 	})
+}
+
+func (h *Handler) ListActionItemAcceptances(c *gin.Context) {
+	summaryID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || summaryID <= 0 {
+		writeError(c, 400, "invalid summary id")
+		return
+	}
+	result, err := h.service.ListActionItemAcceptances(c.Request.Context(), summaryID)
+	if err != nil {
+		writeError(c, 500, "list action item acceptances failed")
+		return
+	}
+	c.JSON(200, gin.H{"status": "ok", "data": result})
 }
 
 func (h *Handler) DeleteSummary(c *gin.Context) {

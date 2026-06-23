@@ -158,6 +158,44 @@ func TestListMemoryEvidenceUsesPathAndReturnsData(t *testing.T) {
 	}
 }
 
+func TestAcceptSummaryActionItemParsesAcceptanceFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/summaries/7/action-items/2/accept" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"summary_id":7,"item_index":2,"target_date":"2026-06-22","target_task_id":123,"created":true,"already_exists":false,"acceptance_status":"accepted"}}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).AcceptSummaryActionItem(context.Background(), 7, 2, "2026-06-22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SummaryID != 7 || result.ItemIndex != 2 || result.TargetTaskID == nil || *result.TargetTaskID != 123 || result.AcceptanceStatus != "accepted" {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestListActionItemAcceptancesUsesPathAndReturnsData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/summaries/7/action-item-acceptances" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":1,"summary_id":7,"item_index":0,"target_date":"2026-06-22","target_task_id":123,"status":"accepted","created_at":"2026-06-21T12:00:00Z"}]}`))
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL).ListActionItemAcceptances(context.Background(), 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].TargetTaskID == nil || *result[0].TargetTaskID != 123 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
 func TestListDailyTasksPreservesCurrentSessionStartedAt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

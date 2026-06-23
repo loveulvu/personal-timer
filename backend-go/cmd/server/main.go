@@ -100,8 +100,10 @@ func main() {
 	api.POST("/summaries/weekly/generate", summaryHandler.GenerateWeeklySummary)
 	api.GET("/summaries", summaryHandler.ListSummaries)
 	api.GET("/summaries/:id", summaryHandler.GetSummaryByID)
-	api.POST("/summaries/:summary_id/action-items/:item_index/accept", summaryHandler.AcceptActionItem)
+	api.POST("/summaries/:id/action-items/:item_index/accept", summaryHandler.AcceptActionItem)
+	api.GET("/summaries/:id/action-item-acceptances", summaryHandler.ListActionItemAcceptances)
 	api.DELETE("/summaries/:id", summaryHandler.DeleteSummary)
+
 	memoryHandler := memories.NewHandler(memoryExtractor, memoryRepo)
 	api.GET("/memories", memoryHandler.ListMemories)
 	api.GET("/memories/:id/evidence", memoryHandler.ListMemoryEvidence)

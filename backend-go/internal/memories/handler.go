@@ -49,7 +49,7 @@ func (h *Handler) ListMemoryEvidence(c *gin.Context) {
 }
 
 func (h *Handler) ExtractSummary(c *gin.Context) {
-	summaryID, err := strconv.ParseInt(c.Param("summary_id"), 10, 64)
+	summaryID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || summaryID <= 0 {
 		c.JSON(400, gin.H{"error": "invalid summary id"})
 		return

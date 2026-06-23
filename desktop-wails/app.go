@@ -105,6 +105,10 @@ func (a *App) AcceptSummaryActionItem(summaryID int64, itemIndex int, targetDate
 	return a.client.AcceptSummaryActionItem(a.ctx, summaryID, itemIndex, targetDate)
 }
 
+func (a *App) ListActionItemAcceptances(summaryID int64) ([]api.ActionItemAcceptance, error) {
+	return a.client.ListActionItemAcceptances(a.ctx, summaryID)
+}
+
 func (a *App) TestLLM() (*api.LLMTestResponse, error) {
 	return a.client.TestLLM(a.ctx)
 }

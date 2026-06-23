@@ -412,11 +412,82 @@ func (r *Repository) acceptedDailyTaskByQuery(ctx context.Context, query string,
 	return &task, nil
 }
 
+func (r *Repository) CreateOrGetActionItemAcceptance(ctx context.Context, input CreateActionItemAcceptanceInput) (*ActionItemAcceptance, error) {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO summary_action_item_acceptances (summary_id, item_index, target_date, target_task_id, status)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE updated_at = updated_at
+	`, input.SummaryID, input.ItemIndex, input.TargetDate, nullableInt64(input.TargetTaskID), input.Status)
+	if err != nil {
+		return nil, err
+	}
+	return r.getActionItemAcceptance(ctx, input.SummaryID, input.ItemIndex, input.TargetDate)
+}
+
+func (r *Repository) ListActionItemAcceptances(ctx context.Context, summaryID int64) ([]ActionItemAcceptance, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, summary_id, item_index, DATE_FORMAT(target_date, '%Y-%m-%d'), target_task_id, status, created_at
+		FROM summary_action_item_acceptances
+		WHERE summary_id = ?
+		ORDER BY item_index ASC, id ASC
+	`, summaryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]ActionItemAcceptance, 0)
+	for rows.Next() {
+		item, err := scanActionItemAcceptance(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	return items, rows.Err()
+}
+
+func (r *Repository) getActionItemAcceptance(ctx context.Context, summaryID int64, itemIndex int, targetDate string) (*ActionItemAcceptance, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT id, summary_id, item_index, DATE_FORMAT(target_date, '%Y-%m-%d'), target_task_id, status, created_at
+		FROM summary_action_item_acceptances
+		WHERE summary_id = ? AND item_index = ? AND target_date = ?
+	`, summaryID, itemIndex, targetDate)
+	item, err := scanActionItemAcceptance(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return item, err
+}
+
+type actionItemAcceptanceScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanActionItemAcceptance(row actionItemAcceptanceScanner) (*ActionItemAcceptance, error) {
+	var item ActionItemAcceptance
+	var targetTaskID sql.NullInt64
+	if err := row.Scan(&item.ID, &item.SummaryID, &item.ItemIndex, &item.TargetDate, &targetTaskID, &item.Status, &item.CreatedAt); err != nil {
+		return nil, err
+	}
+	if targetTaskID.Valid {
+		item.TargetTaskID = &targetTaskID.Int64
+	}
+	return &item, nil
+}
+
 func rawJSONOrNil(value string) json.RawMessage {
 	if !json.Valid([]byte(value)) {
 		return nil
 	}
 	return json.RawMessage(value)
+}
+
+func nullableInt64(value *int64) any {
+	if value == nil {
+		return nil
+	}
+	return *value
 }
 
 func (r *Repository) DeleteSummary(ctx context.Context, id int64) error {

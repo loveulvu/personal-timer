@@ -74,6 +74,10 @@ export function GetWeeklyStats(arg1, arg2) {
   return window['go']['main']['App']['GetWeeklyStats'](arg1, arg2);
 }
 
+export function ListActionItemAcceptances(arg1) {
+  return window['go']['main']['App']['ListActionItemAcceptances'](arg1);
+}
+
 export function ListDailyTasks(arg1) {
   return window['go']['main']['App']['ListDailyTasks'](arg1);
 }

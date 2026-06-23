@@ -223,10 +223,25 @@ type GenerateSummaryResult struct {
 }
 
 type AcceptActionItemResult struct {
-	Created       bool       `json:"created"`
-	AlreadyExists bool       `json:"already_exists"`
-	Task          *DailyTask `json:"task,omitempty"`
-	Message       string     `json:"message,omitempty"`
+	SummaryID        int64      `json:"summary_id"`
+	ItemIndex        int        `json:"item_index"`
+	TargetDate       string     `json:"target_date"`
+	TargetTaskID     *int64     `json:"target_task_id"`
+	Created          bool       `json:"created"`
+	AlreadyExists    bool       `json:"already_exists"`
+	AcceptanceStatus string     `json:"acceptance_status"`
+	Task             *DailyTask `json:"task,omitempty"`
+	Message          string     `json:"message,omitempty"`
+}
+
+type ActionItemAcceptance struct {
+	ID           int64  `json:"id"`
+	SummaryID    int64  `json:"summary_id"`
+	ItemIndex    int    `json:"item_index"`
+	TargetDate   string `json:"target_date"`
+	TargetTaskID *int64 `json:"target_task_id"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
 }
 
 type Summary struct {

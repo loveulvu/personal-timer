@@ -55,8 +55,13 @@ export namespace api {
 		}
 	}
 	export class AcceptActionItemResult {
+	    summary_id: number;
+	    item_index: number;
+	    target_date: string;
+	    target_task_id?: number;
 	    created: boolean;
 	    already_exists: boolean;
+	    acceptance_status: string;
 	    task?: DailyTask;
 	    message?: string;
 	
@@ -66,8 +71,13 @@ export namespace api {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.summary_id = source["summary_id"];
+	        this.item_index = source["item_index"];
+	        this.target_date = source["target_date"];
+	        this.target_task_id = source["target_task_id"];
 	        this.created = source["created"];
 	        this.already_exists = source["already_exists"];
+	        this.acceptance_status = source["acceptance_status"];
 	        this.task = this.convertValues(source["task"], DailyTask);
 	        this.message = source["message"];
 	    }
@@ -89,6 +99,30 @@ export namespace api {
 		    }
 		    return a;
 		}
+	}
+	export class ActionItemAcceptance {
+	    id: number;
+	    summary_id: number;
+	    item_index: number;
+	    target_date: string;
+	    target_task_id?: number;
+	    status: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActionItemAcceptance(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.summary_id = source["summary_id"];
+	        this.item_index = source["item_index"];
+	        this.target_date = source["target_date"];
+	        this.target_task_id = source["target_task_id"];
+	        this.status = source["status"];
+	        this.created_at = source["created_at"];
+	    }
 	}
 	export class ConfigStatus {
 	    database: string;

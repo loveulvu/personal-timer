@@ -212,10 +212,25 @@ export type GenerateSummaryResult = {
 }
 
 export type AcceptActionItemResult = {
+  summary_id: number
+  item_index: number
+  target_date: string
+  target_task_id?: number | null
   created: boolean
   already_exists: boolean
+  acceptance_status: 'accepted' | 'already_exists'
   task?: DailyTask
   message?: string
+}
+
+export type ActionItemAcceptance = {
+  id: number
+  summary_id: number
+  item_index: number
+  target_date: string
+  target_task_id?: number | null
+  status: 'accepted' | 'already_exists'
+  created_at: string
 }
 
 export type FinishTaskRequest = {
@@ -278,7 +293,9 @@ export const api = {
   getSummary: (id: number) => AppBindings.GetSummary(id) as Promise<Summary>,
   deleteSummary: (id: number) => AppBindings.DeleteSummary(id),
   acceptSummaryActionItem: (summaryId: number, itemIndex: number, targetDate: string) =>
-    AppBindings.AcceptSummaryActionItem(summaryId, itemIndex, targetDate) as Promise<AcceptActionItemResult>,
+    AppBindings.AcceptSummaryActionItem(summaryId, itemIndex, targetDate) as unknown as Promise<AcceptActionItemResult>,
+  listActionItemAcceptances: (summaryId: number) =>
+    actionItemBindings.ListActionItemAcceptances(summaryId),
   submitFeedback: (request: FeedbackRequest) =>
     AppBindings.SubmitFeedback({
       target_type: request.target_type,
@@ -297,4 +314,8 @@ import * as AppBindings from '../wailsjs/go/main/App'
 const memoryBindings = AppBindings as unknown as {
   ListMemories: (status: string, memoryType: string, limit: number) => Promise<MemoryListItem[]>
   ListMemoryEvidence: (memoryId: number) => Promise<MemoryEvidenceItem[]>
+}
+
+const actionItemBindings = AppBindings as unknown as {
+  ListActionItemAcceptances: (summaryId: number) => Promise<ActionItemAcceptance[]>
 }

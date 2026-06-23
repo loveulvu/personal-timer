@@ -44,6 +44,8 @@ type summaryRepository interface {
 	FindSummaryProjectByName(ctx context.Context, name string) (*summaryProjectRow, error)
 	FindAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string) (*AcceptedDailyTask, error)
 	CreateAcceptedDailyTask(ctx context.Context, targetDate string, projectID int64, title string, estimatedMinutes int) (*AcceptedDailyTask, error)
+	CreateOrGetActionItemAcceptance(ctx context.Context, input CreateActionItemAcceptanceInput) (*ActionItemAcceptance, error)
+	ListActionItemAcceptances(ctx context.Context, summaryID int64) ([]ActionItemAcceptance, error)
 }
 
 type weeklyStatsProvider interface {
@@ -416,14 +418,62 @@ func (s *Service) AcceptActionItem(ctx context.Context, summaryID int64, itemInd
 		return nil, err
 	}
 	if task != nil {
-		return &AcceptActionItemResult{Created: false, AlreadyExists: true, Task: task, Message: "明日计划中已存在"}, nil
+		acceptance, err := s.recordActionItemAcceptance(ctx, summaryID, itemIndex, targetDate, task.ID, "already_exists")
+		if err != nil {
+			return nil, err
+		}
+		return buildAcceptActionItemResult(summaryID, itemIndex, targetDate, task, acceptance, false, true, "明日计划中已存在"), nil
 	}
 
 	task, err = s.repo.CreateAcceptedDailyTask(ctx, targetDate, project.ID, item.Title, item.SuggestedMinutes)
 	if err != nil {
 		return nil, err
 	}
-	return &AcceptActionItemResult{Created: true, AlreadyExists: false, Task: task}, nil
+	acceptance, err := s.recordActionItemAcceptance(ctx, summaryID, itemIndex, targetDate, task.ID, "accepted")
+	if err != nil {
+		return nil, err
+	}
+	return buildAcceptActionItemResult(summaryID, itemIndex, targetDate, task, acceptance, true, false, ""), nil
+}
+
+func (s *Service) ListActionItemAcceptances(ctx context.Context, summaryID int64) ([]ActionItemAcceptance, error) {
+	if summaryID <= 0 {
+		return nil, ErrSummaryNotFound
+	}
+	return s.repo.ListActionItemAcceptances(ctx, summaryID)
+}
+
+func (s *Service) recordActionItemAcceptance(ctx context.Context, summaryID int64, itemIndex int, targetDate string, taskID int64, status string) (*ActionItemAcceptance, error) {
+	return s.repo.CreateOrGetActionItemAcceptance(ctx, CreateActionItemAcceptanceInput{
+		SummaryID:    summaryID,
+		ItemIndex:    itemIndex,
+		TargetDate:   targetDate,
+		TargetTaskID: &taskID,
+		Status:       status,
+	})
+}
+
+func buildAcceptActionItemResult(summaryID int64, itemIndex int, targetDate string, task *AcceptedDailyTask, acceptance *ActionItemAcceptance, created, alreadyExists bool, message string) *AcceptActionItemResult {
+	var taskID *int64
+	status := ""
+	if task != nil {
+		taskID = &task.ID
+	}
+	if acceptance != nil {
+		taskID = acceptance.TargetTaskID
+		status = acceptance.Status
+	}
+	return &AcceptActionItemResult{
+		SummaryID:        summaryID,
+		ItemIndex:        itemIndex,
+		TargetDate:       targetDate,
+		TargetTaskID:     taskID,
+		Created:          created,
+		AlreadyExists:    alreadyExists,
+		AcceptanceStatus: status,
+		Task:             task,
+		Message:          message,
+	}
 }
 
 func isAcceptableActionItem(item SummaryActionItem) bool {

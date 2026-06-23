@@ -38,6 +38,8 @@ export function GetSummary(arg1:number):Promise<api.Summary>;
 
 export function GetWeeklyStats(arg1:string,arg2:string):Promise<api.WeeklyStats>;
 
+export function ListActionItemAcceptances(arg1:number):Promise<Array<api.ActionItemAcceptance>>;
+
 export function ListDailyTasks(arg1:string):Promise<Array<api.DailyTask>>;
 
 export function ListMemories(arg1:string,arg2:string,arg3:number):Promise<Array<api.MemoryListItem>>;
