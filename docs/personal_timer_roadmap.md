@@ -870,3 +870,58 @@ Current limits:
 - No automatic effectiveness judgment.
 - No automatic schedule reshuffle.
 - No LLM.
+
+## Agent Harness Phases A-H Status
+
+Phase 0 - completed:
+- Agent Harness design boundary.
+- Base backend agent types under `backend-go/internal/agent`.
+
+Phase A - completed:
+- Tool Registry.
+- Read/write risk levels.
+- Minimal read tool execution.
+- Write tool confirmation guard.
+
+Phase B - completed:
+- Context Pack Preview.
+- Structured context from tasks, summaries, memories, plan risk, constraints, and omitted sections.
+- Context truncation and memory filtering.
+
+Phase C - completed:
+- Agent Run / Loop V1.
+- `ModelClient` interface and deterministic fallback.
+- `agent_runs` and `agent_steps` persistence.
+
+Phase D - completed:
+- Persistent `agent_action_proposals`.
+- Accept / reject API.
+- Write tools create proposals instead of writing business tables.
+- Repeated accept is idempotent.
+
+Phase E - completed:
+- Context snapshot persistence.
+- Trajectory query for run, snapshot, steps, and proposals.
+- Rough token estimate for observability.
+
+Phase F - completed:
+- Wails Agent Console.
+- Context preview, run creation, recent runs, trajectory detail, steps timeline, proposals, accept / reject.
+
+Phase G - completed:
+- Internal Evaluation / Replay V1.
+- Fixed eval cases for read tools, write proposal guard, reject no-write, repeated accept idempotency, context constraints, and replay.
+- Replay reads existing trajectory without calling an LLM.
+
+Phase H - current:
+- README refresh.
+- Agent harness summary.
+- Screenshots guide.
+- Interview notes.
+- Resume bullets.
+
+Near-term follow-up:
+- Add real screenshots to README.
+- Optional real `ModelClient` provider.
+- Add finer eval cases.
+- Consider RAG only after importing large notes or interview-question corpora.

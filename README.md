@@ -1,198 +1,223 @@
-# Personal Study Timer
+# Personal Agent Harness Workbench
 
-Personal Study Timer 是一个使用 **Go + MySQL + Wails** 开发的个人学习计时桌面应用。项目围绕“项目分类、每日任务、计时记录、统计与 AI 总结”组织，适合用于展示桌面应用开发、前后端协作、事务处理和统计查询等工程实践。
+Go + Wails + MySQL + LLM Agent Harness
 
-## 核心功能
+Personal Study Timer is a local desktop workbench for structured study planning, time tracking, memory, feedback, and agent-harness experiments. It started as a study timer, but the current focus is the engineering layer around an LLM-style agent: controlled context, tool execution, human approval for writes, trajectory logs, and evaluation.
 
-- 项目管理：创建、编辑和删除长期学习项目。
-- 每日任务管理：按日期创建并查看学习任务。
-- 任务计时：支持开始、暂停、继续和完成任务。
-- 完成记录：完成任务时必须填写完成备注和完成描述。
-- 完成后编辑：可修改已完成任务的备注、描述和实际时长。
-- 完成任务删除：仅允许删除已完成任务，并清理关联计时会话。
-- 学习统计：提供日统计和周统计。
-- AI 总结：通过 LLM API 生成每日总结和每周总结。
-- Windows 一键启动：自动检查环境、执行前端检查并启动开发环境。
+## Why This Is Not Just A Timer
 
-## 项目截图
+A normal timer records elapsed time. This project records the learning loop:
 
-### 项目界面总览
+- planned tasks and estimated minutes
+- real focus sessions and completion notes
+- estimate bias and plan-risk signals
+- daily / weekly summaries
+- action items and acceptance tracking
+- long-term memories linked to evidence
+- human feedback on summaries, action items, and memories
+- agent runs, steps, context snapshots, action proposals, and replay/eval checks
 
-界面展示了每日任务、计时状态、统计信息和 AI 总结入口。
+The system keeps deterministic rules and MySQL state as the source of truth. LLM output is treated as text generation or model decision input, not as an unrestricted writer.
 
-![项目界面总览](docs/images/project-overview.png)
+## Agent Harness Architecture
 
-## 技术栈
+The Agent Harness is the layer outside the model:
 
-| 层级 | 技术 |
+```text
+User Goal
+  -> Context Pack Builder
+  -> ModelClient decision interface
+  -> Tool Registry
+  -> Permission Guard
+  -> Action Proposal
+  -> Trajectory Log
+  -> Replay / Evaluation
+```
+
+Key rule: read tools may execute automatically; write tools create proposals; only user acceptance executes real business services.
+
+## Completed Capabilities
+
+- Daily task planning, timer sessions, pause/resume/finish flows.
+- Daily and weekly stats.
+- Daily and weekly summary generation.
+- Estimate preview and plan-risk analysis.
+- Study memories with evidence.
+- Feedback foundation for summaries, action items, and memories.
+- Action item acceptance tracking.
+- Agent Tool Registry, Context Pack, Run Loop, Permission Guard, Trajectory Log, Console UI, and Evaluation / Replay V1.
+
+## Tech Stack
+
+| Layer | Stack |
 | --- | --- |
-| 后端 | Go、Gin |
-| 数据库 | MySQL |
-| 桌面应用 | Wails |
-| 前端 | React、TypeScript、Vite、Ant Design |
-| AI 能力 | LLM API |
+| Backend | Go, Gin |
+| Database | MySQL |
+| Desktop | Wails |
+| Frontend | React, TypeScript, Vite, Ant Design |
+| Agent Harness | Go package under `backend-go/internal/agent` |
+| LLM boundary | `ModelClient` interface, deterministic fallback in tests/dev |
 
-## 系统结构
+## Core Modules
 
-```text
-Wails Desktop
-├── React / TypeScript UI
-├── Wails Go bindings
-└── HTTP client
-        │
-        ▼
-Gin API Server
-├── projects
-├── daily tasks / timer
-├── stats
-└── summaries / LLM
-        │
-        ▼
-      MySQL
-```
+- `backend-go/internal/dailytasks`: planned tasks and completion records.
+- `backend-go/internal/timer`: start, pause, resume, finish.
+- `backend-go/internal/summaries`: daily / weekly generated summaries and action items.
+- `backend-go/internal/memories`: long-term study memories and evidence.
+- `backend-go/internal/feedback`: structured human feedback.
+- `backend-go/internal/agent`: harness types, tools, context pack, runner, proposals, trajectory, eval.
+- `desktop-wails/frontend/src/AgentPage.tsx`: minimal Agent Console.
 
-桌面端通过 Wails 提供原生窗口与 Go bindings，并调用独立运行的 Gin 后端。后端负责业务校验、事务处理、统计聚合和 LLM 调用；MySQL 保存项目、任务、计时会话与总结数据。
-
-## 核心数据设计
-
-| 数据表 | 作用 |
-| --- | --- |
-| `projects` | 长期学习项目或任务分类。删除项目时保留历史任务，并将任务的项目关联置空。 |
-| `daily_tasks` | 某一天需要执行的具体任务，保存预计时长、状态和完成记录。 |
-| `time_sessions` | 记录任务每次开始至暂停或完成之间的计时区间。 |
-| `generated_summaries` | 保存 AI 生成的每日或每周总结，以及生成时使用的源数据。 |
-
-`daily_tasks` 中与完成记录相关的字段：
-
-- `finish_note`：任务完成时填写的简短备注。
-- `finish_description`：任务完成时填写的详细描述。
-- `completed_at`：任务完成时间。
-- `actual_seconds_override`：人工修正后的实际时长，单位为秒。为 `NULL` 时使用 `time_sessions` 聚合时长；有值时，日统计、周统计和 AI 总结优先使用该值。
-
-## 任务状态流转
-
-后端保存的任务状态保持为英文枚举，前端只负责显示中文标签。
+## Data Feedback Loop
 
 ```text
-planned ──开始──> running ──暂停──> paused
-                    │                 │
-                    └────完成─────────┤
-                                      └──继续──> running
-
-running / paused ──完成──> completed
-planned <────────取消 / 恢复────────> cancelled
+task plan
+  -> timer sessions
+  -> completion notes and actual minutes
+  -> summary and action items
+  -> action item acceptance
+  -> memory / evidence / feedback
+  -> context pack
+  -> agent proposal
+  -> user accept / reject
+  -> evaluation and replay
 ```
 
-- `planned`：计划中，可以开始或取消。
-- `running`：进行中，可以暂停或完成。
-- `paused`：已暂停，可以继续或完成。
-- `completed`：已完成，可以编辑完成记录或删除记录。
-- `cancelled`：已取消，可以恢复为计划中。
+This loop makes the agent behavior inspectable. A proposal can be traced back to context, tool calls, memory evidence, and user decisions.
 
-完成任务时，后端会校验备注和描述非空，并在事务中结束当前计时会话、更新任务状态和保存完成记录。
+## Agent Phase Summary
 
-## 项目亮点
+- Phase 0: Agent Harness design and base types.
+- Phase A: Tool Registry with read/write risk levels.
+- Phase B: Context Pack Preview with truncation and `omitted_sections`.
+- Phase C: Agent Run / Loop V1 with `ModelClient`.
+- Phase D: Persistent Action Proposal and Permission Guard.
+- Phase E: Trajectory Log and Context Snapshot.
+- Phase F: Agent Console UI in Wails.
+- Phase G: Evaluation / Replay V1 without real LLM dependency.
+- Phase H: README, screenshots guide, interview notes, and resume packaging.
 
-- **计时会话建模**：通过 `time_sessions` 保存多次开始、暂停和继续产生的时间区间，避免只依赖前端计时状态。
-- **可覆盖的实际时长**：使用 `actual_seconds_override` 支持人工修正，同时保留恢复为会话聚合时长的能力。
-- **一致的统计口径**：日统计、周统计与 AI 总结输入统一优先使用人工修正时长。
-- **事务化完成与删除**：完成任务和删除完成记录时同步处理任务与关联会话，降低数据不一致风险。
-- **前后端职责分离**：Wails 桌面端负责交互和展示，Gin 后端集中处理业务规则与数据访问。
-- **可诊断的开发启动脚本**：Windows 脚本检查必要环境，限制前端构建等待时间，并输出明确失败原因。
+## API Overview
 
-## 本地开发
+Core APIs:
 
-### 环境要求
+- `GET /api/daily-tasks`
+- `POST /api/daily-tasks`
+- `POST /api/daily-tasks/:id/start`
+- `POST /api/daily-tasks/:id/pause`
+- `POST /api/daily-tasks/:id/resume`
+- `POST /api/daily-tasks/:id/finish`
+- `GET /api/stats/daily`
+- `GET /api/stats/weekly`
+- `POST /api/summaries/daily/generate`
+- `POST /api/summaries/weekly/generate`
+- `GET /api/memories`
+- `GET /api/memories/:id/evidence`
+- `POST /api/feedback`
 
-- Go
-- MySQL
-- Node.js 与 npm
-- Wails CLI
-- 项目根目录下的 `.env`
+Agent APIs:
 
-启动脚本不会自动启动 MySQL。运行应用前，请先确保 MySQL 已启动且 `.env` 配置正确。
+- `GET /api/agent/tools`
+- `POST /api/agent/tool-call`
+- `POST /api/agent/context-preview`
+- `POST /api/agent/runs`
+- `GET /api/agent/runs`
+- `GET /api/agent/runs/:id`
+- `GET /api/agent/runs/:id/trajectory`
+- `GET /api/agent/action-proposals`
+- `GET /api/agent/action-proposals/:id`
+- `POST /api/agent/action-proposals/:id/accept`
+- `POST /api/agent/action-proposals/:id/reject`
 
-### 推荐：Windows 双击或命令行启动
+## Database Migration Overview
 
-在项目根目录双击：
+- `001`-`004`: projects, daily tasks, time sessions, generated summaries.
+- `005`-`008`: summary range uniqueness, completion fields, project scope, action items.
+- `009`-`012`: study memories, memory evidence, feedback, action item acceptance tracking.
+- `013`: `agent_runs`.
+- `014`: `agent_steps`.
+- `015`: `agent_action_proposals`.
+- `016`: `agent_context_snapshots`.
 
-```text
-start-desktop-dev.bat
-```
+Run migrations manually against the local MySQL database before using features backed by new tables.
 
-或在 PowerShell 中运行：
+## Local Development
 
-```powershell
-.\start-desktop-dev.bat
-```
-
-脚本会检查必要目录和命令，仅在缺少 `node_modules` 时安装依赖，执行 TypeScript 与前端构建检查，然后启动后端和 `wails dev`。
-
-### PowerShell 启动
-
-可以从任意路径运行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File E:\Projects\personal-study-timer\scripts\start-desktop-dev.ps1
-```
-
-### 手动启动
-
-先启动后端：
+Backend:
 
 ```powershell
 cd E:\Projects\personal-study-timer\backend-go
 go run ./cmd/server
 ```
 
-再打开另一个 PowerShell 窗口启动桌面端：
+Desktop:
 
 ```powershell
 cd E:\Projects\personal-study-timer\desktop-wails
 wails dev
 ```
 
-## 测试与检查
+Frontend only:
 
-后端测试：
+```powershell
+cd E:\Projects\personal-study-timer\desktop-wails\frontend
+npm run dev
+```
+
+## Tests
+
+Backend:
 
 ```powershell
 cd E:\Projects\personal-study-timer\backend-go
 go test ./...
 ```
 
-桌面端 Go 测试：
+Desktop Go:
 
 ```powershell
 cd E:\Projects\personal-study-timer\desktop-wails
 go test ./...
 ```
 
-前端 TypeScript 检查与构建：
+Frontend:
 
 ```powershell
 cd E:\Projects\personal-study-timer\desktop-wails\frontend
 npx tsc --noEmit
-npm run build
+npm test
 ```
 
-构建产物目录 `desktop-wails/frontend/dist/` 已加入 `.gitignore`，不应提交到仓库。
+If Windows blocks Go temp/cache cleanup, use project-local cache:
 
-## 目录结构
-
-```text
-personal-study-timer/
-├── backend-go/                 # Gin API、业务服务、数据访问与 migrations
-├── desktop-wails/              # Wails 桌面端与 React 前端
-├── docs/images/                # README 项目截图
-├── scripts/start-desktop-dev.ps1
-├── start-desktop-dev.bat
-└── README.md
+```powershell
+mkdir .gotmp, .gocache -Force
+$env:GOTMPDIR="$PWD\.gotmp"
+$env:GOCACHE="$PWD\.gocache"
+go test -work ./...
 ```
 
-## Roadmap
+## Screenshots
 
-- 增加关键业务流程的集成测试覆盖。
-- 补充数据库迁移执行与回滚说明。
-- 优化开发环境诊断信息和日志展示。
-- 持续改善桌面端可访问性与键盘操作体验。
+Current screenshot asset:
+
+- `docs/images/project-overview.png`
+
+Recommended additional screenshots are listed in `docs/screenshots_guide.md`, including Agent Console context preview, trajectory timeline, pending proposal, and executed proposal.
+
+## Interview Highlights
+
+- Built a local desktop app with Go, Wails, React, and MySQL.
+- Designed an Agent Harness without depending on LangChain or a vector database.
+- Separated read tools from write tools with a human-in-the-loop proposal guard.
+- Persisted context snapshots, tool steps, and action proposals for auditability.
+- Added evidence-linked memory so long-term context is grounded in stored records.
+- Added replay/eval checks for key behaviors such as write confirmation and idempotent accept.
+
+## Current Boundaries
+
+- No autonomous scheduling.
+- No destructive agent tools.
+- No arbitrary shell or file operations.
+- No full chain-of-thought persistence.
+- No vector database or RAG until there is a real large-document retrieval problem.
