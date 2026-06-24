@@ -254,6 +254,7 @@ func compactTasks(tasks []dailytasks.DailyTask) []ContextTask {
 		result = append(result, ContextTask{
 			ID:               task.ID,
 			ProjectID:        task.ProjectID,
+			ProjectName:      task.ProjectName,
 			TaskDate:         task.TaskDate,
 			Title:            task.Title,
 			EstimatedMinutes: task.EstimatedMinutes,

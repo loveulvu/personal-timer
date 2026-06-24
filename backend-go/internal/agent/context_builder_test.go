@@ -22,7 +22,7 @@ type contextTaskLister struct{}
 func (f contextTaskLister) ListDailyTasksByDate(date string) ([]dailytasks.DailyTask, error) {
 	projectID := int64(1)
 	return []dailytasks.DailyTask{
-		{ID: 1, ProjectID: &projectID, TaskDate: date, Title: "Go review", EstimatedMinutes: 60, ActualSeconds: 1800, Status: "planned"},
+		{ID: 1, ProjectID: &projectID, ProjectName: "personal_study_timer", TaskDate: date, Title: "Go review", EstimatedMinutes: 60, ActualSeconds: 1800, Status: "planned"},
 	}, nil
 }
 

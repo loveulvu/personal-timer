@@ -36,7 +36,10 @@ type AgentDecision struct {
 
 type DeterministicModelClient struct{}
 
-var minutesPattern = regexp.MustCompile(`(\d+)\s*分钟`)
+var (
+	minutesPattern         = regexp.MustCompile(`(\d+)\s*分钟`)
+	explicitProjectPattern = regexp.MustCompile(`项目(?:使用)?\s*([A-Za-z0-9_-]+)`)
+)
 
 func NewDeterministicModelClient() ModelClient {
 	return DeterministicModelClient{}
@@ -67,11 +70,11 @@ func deterministicCreateTaskDecision(input AgentDecisionInput) (AgentDecision, b
 			ThoughtSummary:  "deterministic fallback could not find write tool",
 		}, true
 	}
-	projectID, ok := inferDemoProjectID(goal, input.ContextPack.TodayTasks)
-	if !ok {
+	projectID, errMsg := inferDemoProjectID(goal, input.ContextPack.TodayTasks)
+	if errMsg != "" {
 		return AgentDecision{
 			UnsupportedGoal: true,
-			ErrorMessage:    "cannot infer project_id for create_daily_task demo",
+			ErrorMessage:    errMsg,
 			ThoughtSummary:  "deterministic fallback refused to hardcode project_id",
 		}, true
 	}
@@ -108,33 +111,46 @@ func toolAvailable(tools []AgentTool, name string) bool {
 	return false
 }
 
-func inferDemoProjectID(goal string, tasks []ContextTask) (int64, bool) {
-	wantPersonalTimer := strings.Contains(strings.ToLower(goal), "personal_study_timer")
+func inferDemoProjectID(goal string, tasks []ContextTask) (int64, string) {
+	projectName := explicitProjectName(goal)
+	if projectName != "" {
+		for _, task := range tasks {
+			if task.ProjectID != nil && sameProjectName(task.ProjectName, projectName) {
+				return *task.ProjectID, ""
+			}
+		}
+		return 0, "cannot infer project_id: project name not found in context"
+	}
+
 	unique := map[int64]bool{}
 	for _, task := range tasks {
 		if task.ProjectID == nil || *task.ProjectID <= 0 {
 			continue
-		}
-		if wantPersonalTimer && normalizeProjectName(task.ProjectName) == "personalstudytimer" {
-			return *task.ProjectID, true
 		}
 		unique[*task.ProjectID] = true
 	}
 	if len(unique) == 1 {
 		// ponytail: deterministic demo fallback; uses the only project already present in today's context, never a hardcoded id.
 		for id := range unique {
-			return id, true
+			return id, ""
 		}
 	}
-	return 0, false
+	if len(unique) == 0 {
+		return 0, "cannot infer project_id: no project_id found in context"
+	}
+	return 0, "cannot infer project_id: multiple project_ids found in context"
 }
 
-func normalizeProjectName(value string) string {
-	value = strings.ToLower(value)
-	value = strings.ReplaceAll(value, "_", "")
-	value = strings.ReplaceAll(value, "-", "")
-	value = strings.ReplaceAll(value, " ", "")
-	return value
+func explicitProjectName(goal string) string {
+	match := explicitProjectPattern.FindStringSubmatch(goal)
+	if len(match) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(match[1])
+}
+
+func sameProjectName(left, right string) bool {
+	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
 func inferMinutes(goal string) int {

@@ -5,6 +5,7 @@ import "time"
 type DailyTask struct {
 	ID                      int64      `json:"id"`
 	ProjectID               *int64     `json:"project_id"`
+	ProjectName             string     `json:"project_name,omitempty"`
 	TaskDate                string     `json:"task_date"`
 	Title                   string     `json:"title"`
 	EstimatedMinutes        int        `json:"estimated_minutes"`

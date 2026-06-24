@@ -36,7 +36,7 @@ VALUES (?, ?, ?, ?)
 
 func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 	query := `
-		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
+		SELECT dt.id, dt.project_id, COALESCE(p.name, ''), dt.task_date, dt.title, dt.estimated_minutes, dt.status,
 			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
 			CASE
 				WHEN dt.status = 'completed' THEN COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0))
@@ -45,6 +45,7 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 			ts.current_session_started_at,
 			dt.created_at, dt.updated_at
 		FROM daily_tasks dt
+		LEFT JOIN projects p ON p.id = dt.project_id
 		LEFT JOIN (
 			SELECT daily_task_id,
 				SUM(duration_seconds) AS total_seconds,
@@ -69,6 +70,7 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 		if err := rows.Scan(
 			&task.ID,
 			&task.ProjectID,
+			&task.ProjectName,
 			&task.TaskDate,
 			&task.Title,
 			&task.EstimatedMinutes,
@@ -97,7 +99,7 @@ func (r *Repository) ListDailyTasksByDate(date string) ([]DailyTask, error) {
 
 func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 	query := `
-		SELECT dt.id, dt.project_id, dt.task_date, dt.title, dt.estimated_minutes, dt.status,
+		SELECT dt.id, dt.project_id, COALESCE(p.name, ''), dt.task_date, dt.title, dt.estimated_minutes, dt.status,
 			dt.finish_note, dt.finish_description, dt.completed_at, dt.actual_seconds_override,
 			CASE
 				WHEN dt.status = 'completed' THEN COALESCE(dt.actual_seconds_override, COALESCE(ts.total_seconds, 0))
@@ -106,6 +108,7 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 			ts.current_session_started_at,
 			dt.created_at, dt.updated_at
 		FROM daily_tasks dt
+		LEFT JOIN projects p ON p.id = dt.project_id
 		LEFT JOIN (
 			SELECT daily_task_id,
 				SUM(duration_seconds) AS total_seconds,
@@ -120,6 +123,7 @@ func (r *Repository) GetDailyTaskByID(id int64) (*DailyTask, error) {
 	err := r.db.QueryRow(query, id).Scan(
 		&task.ID,
 		&task.ProjectID,
+		&task.ProjectName,
 		&task.TaskDate,
 		&task.Title,
 		&task.EstimatedMinutes,

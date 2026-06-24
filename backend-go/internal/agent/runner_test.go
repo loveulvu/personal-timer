@@ -373,7 +373,7 @@ func TestDeterministicModelCreatesTaskProposalForDemoGoal(t *testing.T) {
 	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), NewDeterministicModelClient())
 
 	result, err := runner.Start(context.Background(), AgentRunRequest{
-		Goal:       "帮我创建一个今天 60 分钟的 Go GC 复习任务",
+		Goal:       "创建任务：今天安排一个 60 分钟的 Go GC 复习任务，项目使用 personal_study_timer",
 		TargetDate: "2026-06-23",
 		RecentDays: 5,
 	})
@@ -390,8 +390,35 @@ func TestDeterministicModelCreatesTaskProposalForDemoGoal(t *testing.T) {
 		t.Fatalf("action_type = %s, want create_daily_task", result.Proposals[0].ActionType)
 	}
 	if !strings.Contains(string(result.Proposals[0].Payload), `"title":"Go GC 复习"`) ||
-		!strings.Contains(string(result.Proposals[0].Payload), `"estimated_minutes":60`) {
+		!strings.Contains(string(result.Proposals[0].Payload), `"estimated_minutes":60`) ||
+		!strings.Contains(string(result.Proposals[0].Payload), `"project_id":1`) {
 		t.Fatalf("payload = %s", result.Proposals[0].Payload)
+	}
+	if readCalls != 0 {
+		t.Fatalf("side-effect calls = %d, want 0", readCalls)
+	}
+}
+
+func TestDeterministicModelFailsWhenProjectNameMissingFromContext(t *testing.T) {
+	readCalls := 0
+	runner := NewRunner(newMemoryAgentStore(), testContextBuilder(), testRegistryWithReadAndWrite(&readCalls), NewDeterministicModelClient())
+
+	result, err := runner.Start(context.Background(), AgentRunRequest{
+		Goal:       "创建任务：今天安排一个 60 分钟的 Go GC 复习任务，项目使用 missing_project",
+		TargetDate: "2026-06-23",
+		RecentDays: 5,
+	})
+	if err != nil {
+		t.Fatalf("Start err = %v", err)
+	}
+	if result.Run.Status != AgentRunStatusFailed {
+		t.Fatalf("status = %s, want failed", result.Run.Status)
+	}
+	if result.Run.ErrorMessage != "cannot infer project_id: project name not found in context" {
+		t.Fatalf("error = %q", result.Run.ErrorMessage)
+	}
+	if len(result.Proposals) != 0 {
+		t.Fatalf("proposals = %+v, want none", result.Proposals)
 	}
 	if readCalls != 0 {
 		t.Fatalf("side-effect calls = %d, want 0", readCalls)
