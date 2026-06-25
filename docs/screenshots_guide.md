@@ -1,57 +1,19 @@
 # Screenshots Guide
 
-Use this guide to capture README and portfolio screenshots. Store files under `docs/images/`.
+Use this guide to track README and portfolio screenshots. Store files under `docs/screenshots/`.
 
-## Today Page
+## README Screenshots
 
-- File: `today-page.png`
-- Shows: daily task planning, project selection, estimated minutes, timer controls, plan-risk panel.
-- README placement: near "Why This Is Not Just A Timer".
+All required README screenshots are present.
 
-## Summaries Page
+| File | Page | Proof point |
+| --- | --- | --- |
+| `01_today_tasks.png` | Today tasks | Accepted agent proposal appears in the daily plan alongside normal task management. |
+| `02_agent_context_preview.png` | Agent Console / Context Preview | ContextPack includes today tasks, recent summaries, memories, constraints, and omitted sections before model decision. |
+| `03_agent_run_steps_timeline.png` | Agent Console / Run Detail | Step timeline records `build_context`, `model_decision`, `tool_call`, and final answer behavior for audit. |
+| `04_agent_pending_proposal.png` | Agent Console / Proposals | `create_daily_task` write tool is held as a pending proposal with Accept / Reject controls. |
+| `07_memory_evidence.png` | Memories | Memory confidence, support count, evidence records, and feedback controls show evidence-linked memory. |
 
-- File: `summaries-page.png`
-- Shows: daily / weekly summary generation, action items, feedback, accept action item.
-- README placement: near "Data Feedback Loop".
+## Optional Screenshot
 
-## Memories Page
-
-- File: `memories-page.png`
-- Shows: active memories, confidence, feedback controls, evidence toggle.
-- README placement: near "Core Modules" or "Interview Highlights".
-
-## Agent Console - Context Preview
-
-- File: `agent-context-preview.png`
-- Shows: goal input, target date, recent days, ContextPack sections, constraints, omitted sections.
-- README placement: near "Agent Harness Architecture".
-
-## Agent Console - Run Detail / Steps Timeline
-
-- File: `agent-steps-timeline.png`
-- Shows: run status, context snapshot, step timeline, tool input/output collapse.
-- README placement: near "Trajectory Log".
-
-## Agent Console - Pending Proposal
-
-- File: `agent-pending-proposal.png`
-- Shows: `create_daily_task` proposal with risk level `write`, payload JSON, Accept / Reject buttons.
-- README placement: near "Action Proposal".
-
-## Agent Console - Executed Proposal
-
-- File: `agent-executed-proposal.png`
-- Shows: proposal status `executed`, result JSON, target task id.
-- README placement: near "Permission Guard".
-
-## Agent Console - Trajectory Detail
-
-- File: `agent-trajectory-detail.png`
-- Shows: run, snapshot, steps, proposals together.
-- README placement: near "Evaluation / Replay".
-
-## Eval / Test Pass
-
-- File: `agent-eval-tests.png`
-- Shows: `go test ./...` passing for `backend-go/internal/agent/eval`.
-- README placement: near "Tests" or portfolio appendix.
+- `05_agent_proposal_executed.png`: optional; shows proposal accept flow with `status=executed` and `result_json`.

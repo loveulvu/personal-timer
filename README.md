@@ -197,13 +197,37 @@ $env:GOCACHE="$PWD\.gocache"
 go test -work ./...
 ```
 
-## Screenshots
+## Demo Flow / Screenshots
 
-Current screenshot asset:
+### Context Pack Preview
 
-- `docs/images/project-overview.png`
+![Context Pack Preview](docs/screenshots/02_agent_context_preview.png)
 
-Recommended additional screenshots are listed in `docs/screenshots_guide.md`, including Agent Console context preview, trajectory timeline, pending proposal, and executed proposal.
+Shows the ContextPack assembled before an agent run: today tasks, recent summaries, memories, constraints, and omitted sections. This demonstrates that the harness builds controlled context instead of passing the raw user prompt straight to a model.
+
+### Agent Run Trajectory
+
+![Agent Run Trajectory](docs/screenshots/03_agent_run_steps_timeline.png)
+
+Shows the run step timeline, including `build_context`, `model_decision`, `tool_call`, and final response steps. This makes agent behavior auditable after the run.
+
+### Human-in-the-loop Action Proposal
+
+![Human-in-the-loop Action Proposal](docs/screenshots/04_agent_pending_proposal.png)
+
+Shows a `create_daily_task` write tool intercepted as a pending proposal with Accept / Reject controls. The agent can propose a business write, but it cannot write directly without user approval.
+
+### Today Tasks
+
+![Today Tasks](docs/screenshots/01_today_tasks.png)
+
+Shows a confirmed agent proposal entering the daily plan alongside normal study task management. This keeps agent output inside the same task workflow as manually created work.
+
+### Evidence-linked Memory
+
+![Evidence-linked Memory](docs/screenshots/07_memory_evidence.png)
+
+Shows memory confidence, support count, evidence records, and user feedback controls. Long-term memory is tied to stored evidence instead of being treated as source-free model text.
 
 ## Interview Highlights
 
